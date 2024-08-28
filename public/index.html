@@ -1,23 +1,317 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="generator" content="GitLab Pages">
-    <title>Plain HTML site using GitLab Pages</title>
-    <link rel="stylesheet" href="style.css">
-  </head>
-  <body>
-    <div class="navbar">
-      <a href="https://pages.gitlab.io/plain-html/">Plain HTML Example</a>
-      <a href="https://gitlab.com/pages/plain-html/">Repository</a>
-      <a href="https://gitlab.com/pages/">Other Examples</a>
-    </div>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SH4 Pipeline Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 2em;
+            padding: 0;
+        }
 
-    <h1>Hello World!</h1>
+        .src {
+            width: 99%;
+            height: 10em;
+        }
 
-    <p>
-      This is a simple plain-HTML website on GitLab Pages, without any fancy static site generator.
-    </p>
-  </body>
+        body.error {
+            background-color: red;
+        }
+
+        .result {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<h1>SH4 Pipeline Simulator</h1>
+<textarea class="src" oninput="do_sim()">
+add r0, r0
+MOV R0, R0
+mov 0, r0 ; this is a test
+add r0, r0
+mov.l @r0, r0
+</textarea>
+
+<div class="result">
+
+</div>
+
+<script>
+    const Stage = {
+        I: "I",
+        D: "D",
+        d: "d",
+        EX: "EX",
+        SX: "SX",
+        F0: "F0",
+        F1: "F1",
+        F2: "F2",
+        F3: "F3",
+        NA: "NA",
+        MA: "MA",
+        S: "S",
+        FS: "FS",
+    };
+
+    const Group = {
+        MT: "MT",
+        EX: "EX",
+        BR: "BR",
+        LS: "LS",
+        FE: "FE",
+        CO: "CO"
+    };
+
+    function isParallel(group1, group2) {
+        if (group1 == Group.CO || group2 == Group.CO)
+            return false;
+        else
+            return group1 != group2;
+    }
+
+    const Patterns = {
+        // 1-step operation: 1 issue cycle
+        // EXT[SU].[BW], MOV, MOV#, MOVA, MOVT, SWAP.[BW], XTRCT, ADD*, CMP*, 
+        // DIV*, DT, NEG*, SUB*, AND, AND#, NOT, OR, OR#, TST, TST#, XOR, XOR#, 
+        // ROT*, SHA*, SHL*, BF*, BT*, BRA, NOP, CLRS, CLRT, SETS, SETT, 
+        // LDS to FPUL, STS from FPUL/FPSCR, FLDI0, FLDI1, FMOV, FLDS, FSTS, 
+        // single-/double-precision FABS/FNEG
+        1: [Stage.I, Stage.D, Stage.EX, Stage.NA, Stage.S],
+
+        // Load/store: 1 issue cycle
+	    // MOV.[BWL]. FMOV*@, LDS.L to FPUL, LDTLB, PREF, STS.L from FPUL/FPSCR
+        2: [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S],
+
+        // GBR-based load/store: 1 issue cycle
+	    // MOV.[BWL]@(d,GBR)
+        3: [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S],
+    };
+
+    const Instructions = {
+         1: [["EXTS.B", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+         2: [["EXTS.W", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+         3: [["EXTU.B", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+         4: [["EXTU.W", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+         5: [["MOV", "Rm","Rn"], Group.MT, 1, 0, Patterns[1]],
+         6: [["MOV", "#imm","Rn"], Group.EX, 1, 1, Patterns[1]],
+         7: [["MOVA", "@(disp,PC)","R0"], Group.EX, 1, 1, Patterns[1]],
+         8: [["MOV.W", "@(disp,PC)","Rn"], Group.LS, 1, 2, Patterns[2]],
+         9: [["MOV.L", "@(disp,PC)","Rn"], Group.LS, 1, 2, Patterns[2]],
+        10: [["MOV.B", "@Rm","Rn"], Group.LS, 1, 2, Patterns[2]],
+        11: [["MOV.W", "@Rm","Rn"], Group.LS, 1, 2, Patterns[2]],
+        12: [["MOV.L", "@Rm","Rn"], Group.LS, 1, 2, Patterns[2]],
+
+        49: [["ADD", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        50: [["ADD", "#imm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        51: [["ADDC", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        52: [["ADDV", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        53: [["CMP/EQ", "#imm","R0"], Group.MT, 1, 1, Patterns[1]],
+        54: [["CMP/EQ", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        55: [["CMP/GE", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        56: [["CMP/GT", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        57: [["CMP/HI", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        58: [["CMP/HS", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        59: [["CMP/PL", "Rn"], Group.MT, 1, 1, Patterns[1]],
+        60: [["CMP/PZ", "Rn"], Group.MT, 1, 1, Patterns[1]],
+        61: [["CMP/STR", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+
+        78: [["AND", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        79: [["AND", "#imm","R0"], Group.EX, 1, 1, Patterns[1]],
+        
+        81: [["NOT", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        82: [["OR", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        83: [["OR", "#imm","R0"], Group.EX, 1, 1, Patterns[1]],
+
+        86: [["TST", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        87: [["TST", "#imm","R0"], Group.MT, 1, 1, Patterns[1]],
+        89: [["XOR", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
+        90: [["XOR", "#imm","R0"], Group.EX, 1, 1, Patterns[1]],
+    };
+
+    // Registers
+    // 16 gprs for now, as a bitfield
+    let instructions_rainbow = {}
+
+    function cartesianProduct(arrays) {
+        return arrays.reduce((acc, array) => {
+            return acc.flatMap(accItem => {
+                return array.map(arrayItem => {
+                    return [...accItem, arrayItem];
+                });
+            });
+        }, [[]]);
+    }
+
+    function getVariants(str) {
+        switch(str) {
+            case "Rm":
+            case "Rn":
+                return ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15"];
+            case "@Rm":
+            case "@Rn":
+                return ["@R0", "@R1", "@R2", "@R3", "@R4", "@R5", "@R6", "@R7", "@R8", "@R9", "@R10", "@R11", "@R12", "@R13", "@R14", "@R15"];
+            case "#imm":
+                return Array.from({ length: 255 }, (_, index) => `${index}`);
+            case "@(disp,PC)":
+                return Array.from({ length: 255 }, (_, index) => `@(${index},PC)`);
+            default:
+                return [str]
+        }
+    }
+    for (const index of Object.keys(Instructions)) {
+        const insn = Instructions[index];
+
+        const parts = insn[0];
+
+        let insn_variants = cartesianProduct(parts.map(getVariants));
+        for (insn_variant of insn_variants) {
+            instructions_rainbow[(insn_variant[0] + " " + insn_variant.slice(1).join(",")).toLowerCase()] = insn;
+        }
+    }
+
+    function assemble(lines) {
+        let rv = []
+        for (line of lines.split("\n")) {
+            let processed = line.split(/(;|\/\/)/)[0].trim();
+
+            if (processed.length) {
+                processed = processed.replace(/\s+/, " ").replace(", ", ",").toLowerCase();
+                let insn = instructions_rainbow[processed];
+                if (!insn)
+                    return null;
+                rv.push({text: processed, insn: insn});
+            }
+        }
+
+        return rv;
+    }
+
+    function generateTable(tableArray) {
+        // Determine the number of rows by finding the length of the first column
+        const numRows = tableArray[0].length;
+
+        // Create a table element
+        const table = document.createElement('table');
+        table.style.borderCollapse = 'collapse'; // Optional: Makes the table borders collapse
+
+        // Iterate over each row index
+        for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+            // Create a new row
+            const row = document.createElement('tr');
+
+            // Iterate over each column to get the data for the current row
+            tableArray.forEach(colData => {
+                // Create a new cell (td element)
+                const cell = document.createElement('td');
+                cell.textContent = colData[rowIndex]; // Set the cell's text content
+                cell.style.border = '1px solid black'; // Optional: Add a border to the cell
+                cell.style.padding = '5px'; // Optional: Add some padding
+
+                // Append the cell to the row
+                row.appendChild(cell);
+            });
+
+            // Append the row to the table
+            table.appendChild(row);
+        }
+
+        // Append the table to the body (or any other container element)
+        document.querySelector(".result").innerHTML = ""
+        document.querySelector(".result").appendChild(table);
+    }
+
+
+    function do_sim() {
+        let insns = assemble(document.querySelector(".src").value)
+        if (!insns) {
+            document.body.classList.add("error")
+            return;
+        }
+
+        document.body.classList.remove("error")
+
+        let insn0 = null
+        let insn1 = null
+
+        let stage0 = 0
+        let stage1 = 0
+
+        let pc0 = null
+        let pc1 = null
+
+        let pc = 0;
+        let cycle = 0;
+
+        let table = [];
+
+        table.push(insns.map(x => x.text))
+        table[0].unshift("inst\\cycle");
+
+        for(;;) {
+            if (insn0 == null && insn1 == null && pc == insns.length)
+                break;
+            cycle++;
+            
+            table.push(Array.from({length: insns.length}))
+            let last_column = table[table.length - 1];
+
+            if (insn0 == null && insn1) {
+                insn0 = insn1;
+                stage0 = stage1;
+                pc0 = pc1
+                insn1 = null
+            }
+
+            if (insn0 == null && pc != insns.length) {
+                pc0 = pc
+                insn0 = insns[pc++];
+                stage0 = 0
+            }
+
+            if (insn1 == null && pc != insns.length) {
+                pc1 = pc
+                insn1= insns[pc++];
+                stage1 = 0
+            }
+
+            last_column[pc0] = insn0.insn[4][stage0];
+            const dual_issue = insn1 != null && 
+                (
+                    insn0.insn[4][stage0] != insn1.insn[4][stage1] || 
+                    (insn0.insn[4][stage0] == Stage.I || insn1.insn[4][stage1] == Stage.I) ||
+                    isParallel(insn0.insn[1], insn1.insn[1])
+                );
+
+            stage0++;
+            if (stage0 == insn0.insn[4].length)
+                insn0 = null
+
+            if (insn1 != null) {
+                if (!dual_issue) {
+                    last_column[pc1] = `*${insn1.insn[4][stage1]}*`;
+                } else {
+                    last_column[pc1] = insn1.insn[4][stage1];
+
+                    stage1++;
+                    if (stage1 == insn1.insn[4].length)
+                        insn1 = null
+                }
+            }
+
+            last_column.unshift(cycle)
+        }
+
+        generateTable(table);
+
+    }
+
+    do_sim();
+</script>
+
+</body>
 </html>
-
