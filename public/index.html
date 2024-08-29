@@ -35,6 +35,11 @@ MOV R0, R0
 mov 0, r0 ; this is a test
 add r0, r0
 mov.l @r0, r0
+add r0, r0
+MOV R0, R0
+mov 0, r0 ; this is a test
+add r0, r0
+mov.l @r0, r0    
 </textarea>
 
 <div class="result">
@@ -42,21 +47,43 @@ mov.l @r0, r0
 </div>
 
 <script>
+
+    const Flags = {
+        L: 16,
+    }
+
     const Stage = {
-        I: "I",
-        D: "D",
-        d: "d",
-        EX: "EX",
-        SX: "SX",
-        F0: "F0",
-        F1: "F1",
-        F2: "F2",
-        F3: "F3",
-        NA: "NA",
-        MA: "MA",
-        S: "S",
-        FS: "FS",
+        I: 0,
+        D: 1,
+        EX: 3,
+        SX: 4,
+        F0: 5,
+        F1: 6,
+        F2: 7,
+        F3: 8,
+        NA: 9,
+        MA: 10,
+        S: 11,
+        FS: 12,
+        Count: 13,
+
+        DL: 2 /* D */ | Flags.L
     };
+
+    const StageNames = { }
+    StageNames[Stage.I] = "I";
+    StageNames[Stage.D] = "D";
+    StageNames[Stage.EX] = "EX";
+    StageNames[Stage.SX] = "SX";
+    StageNames[Stage.F0] = "F0";
+    StageNames[Stage.F1] = "F1";
+    StageNames[Stage.F2] = "F2";
+    StageNames[Stage.F3] = "F3";
+    StageNames[Stage.NA] = "NA";
+    StageNames[Stage.MA] = "MA";
+    StageNames[Stage.S] = "S";
+    StageNames[Stage.FS] = "FS";
+    StageNames[Stage.DL] = "[D]";
 
     const Group = {
         MT: "MT",
@@ -81,15 +108,57 @@ mov.l @r0, r0
         // ROT*, SHA*, SHL*, BF*, BT*, BRA, NOP, CLRS, CLRT, SETS, SETT, 
         // LDS to FPUL, STS from FPUL/FPSCR, FLDI0, FLDI1, FMOV, FLDS, FSTS, 
         // single-/double-precision FABS/FNEG
-        1: [Stage.I, Stage.D, Stage.EX, Stage.NA, Stage.S],
+        1: [
+            [Stage.I, Stage.D, Stage.EX, Stage.NA, Stage.S]
+        ],
 
         // Load/store: 1 issue cycle
 	    // MOV.[BWL]. FMOV*@, LDS.L to FPUL, LDTLB, PREF, STS.L from FPUL/FPSCR
-        2: [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S],
+        2: [
+            [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S]
+        ],
 
         // GBR-based load/store: 1 issue cycle
 	    // MOV.[BWL]@(d,GBR)
-        3: [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S],
+        3: [
+            [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S]
+        ],
+
+        // JMP, RTS, BRAF: 2 issue cycles
+        4: [
+            [Stage.I, Stage.D, Stage.EX, Stage.NA, Stage.S]
+            [null   , null   , Stage.DL, Stage.EX, Stage.NA, Stage.S]
+        ],
+
+        // TST.B: 3 issue cycles
+        5: [
+            [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S]
+            [null   , null   , Stage.DL, Stage.SX, Stage.NA, Stage.S],
+            [null   , null   , null    , Stage.DL, Stage.SX, Stage.MA, Stage.S]
+        ],
+
+        // AND.B, OR.B, XOR.B: 4 issue cycles
+        6: [
+            [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S]
+            [null   , null   , Stage.DL, Stage.SX, Stage.NA, Stage.S],
+            [null   , null   , null    , Stage.DL, Stage.SX, Stage.NA, Stage.S]
+            [null   , null   , null    , null    , Stage.DL, Stage.SX, Stage.MA, Stage.S]
+        ],
+
+        // TAS.B: 5 issue cycles
+        6: [
+            [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S]
+            [null   , null   , Stage.DL, Stage.EX, Stage.NA, Stage.S],
+            [null   , null   , null    , Stage.DL, Stage.EX, Stage.NA, Stage.S]
+            [null   , null   , null    , null    , Stage.DL, Stage.EX, Stage.MA, Stage.S]
+        ],
+
+        // Single-precision floating-point computation: 1 issue cycle
+        // FCMP/EQ,FCMP/GT, FADD,FLOAT,FMAC,FMUL,FSUB,FTRC,FRCHG,FSCHG
+        36: [
+            [Stage.I, Stage.D, Stage.F1, Stage.F2, Stage.FS]
+        ]
+
     };
 
     const Instructions = {
@@ -279,26 +348,25 @@ mov.l @r0, r0
                 stage1 = 0
             }
 
-            last_column[pc0] = insn0.insn[4][stage0];
+            last_column[pc0] = StageNames[insn0.insn[4][0][stage0]];
             const dual_issue = insn1 != null && 
                 (
-                    insn0.insn[4][stage0] != insn1.insn[4][stage1] || 
-                    (insn0.insn[4][stage0] == Stage.I || insn1.insn[4][stage1] == Stage.I) ||
+                    insn0.insn[4][0][stage0] != insn1.insn[4][0][stage1] || 
                     isParallel(insn0.insn[1], insn1.insn[1])
                 );
 
             stage0++;
-            if (stage0 == insn0.insn[4].length)
+            if (stage0 == insn0.insn[4][0].length)
                 insn0 = null
 
             if (insn1 != null) {
                 if (!dual_issue) {
-                    last_column[pc1] = `*${insn1.insn[4][stage1]}*`;
+                    last_column[pc1] = `*${StageNames[insn1.insn[4][0][stage1]]}*`;
                 } else {
-                    last_column[pc1] = insn1.insn[4][stage1];
+                    last_column[pc1] = StageNames[insn1.insn[4][0][stage1]];
 
                     stage1++;
-                    if (stage1 == insn1.insn[4].length)
+                    if (stage1 == insn1.insn[4][0].length)
                         insn1 = null
                 }
             }
