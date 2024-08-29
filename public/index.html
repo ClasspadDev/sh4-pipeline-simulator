@@ -162,44 +162,45 @@ mov.l @r0, r0
     };
 
     const Instructions = {
-         1: [["EXTS.B", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-         2: [["EXTS.W", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-         3: [["EXTU.B", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-         4: [["EXTU.W", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-         5: [["MOV", "Rm","Rn"], Group.MT, 1, 0, Patterns[1]],
-         6: [["MOV", "#imm","Rn"], Group.EX, 1, 1, Patterns[1]],
-         7: [["MOVA", "@(disp,PC)","R0"], Group.EX, 1, 1, Patterns[1]],
-         8: [["MOV.W", "@(disp,PC)","Rn"], Group.LS, 1, 2, Patterns[2]],
-         9: [["MOV.L", "@(disp,PC)","Rn"], Group.LS, 1, 2, Patterns[2]],
-        10: [["MOV.B", "@Rm","Rn"], Group.LS, 1, 2, Patterns[2]],
-        11: [["MOV.W", "@Rm","Rn"], Group.LS, 1, 2, Patterns[2]],
-        12: [["MOV.L", "@Rm","Rn"], Group.LS, 1, 2, Patterns[2]],
+         1: {asm: ["EXTS.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+         2: {asm: ["EXTS.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+         3: {asm: ["EXTU.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+         4: {asm: ["EXTU.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+         5: {asm: ["MOV", "Rm","Rn"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1] },
+         6: {asm: ["MOV", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+         7: {asm: ["MOVA", "@(disp,PC)","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+         8: {asm: ["MOV.W", "@(disp,PC)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2] },
+         9: {asm: ["MOV.L", "@(disp,PC)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2] },
+        10: {asm: ["MOV.B", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2] },
+        11: {asm: ["MOV.W", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2] },
+        12: {asm: ["MOV.L", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2] },
 
-        49: [["ADD", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        50: [["ADD", "#imm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        51: [["ADDC", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        52: [["ADDV", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        53: [["CMP/EQ", "#imm","R0"], Group.MT, 1, 1, Patterns[1]],
-        54: [["CMP/EQ", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
-        55: [["CMP/GE", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
-        56: [["CMP/GT", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
-        57: [["CMP/HI", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
-        58: [["CMP/HS", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
-        59: [["CMP/PL", "Rn"], Group.MT, 1, 1, Patterns[1]],
-        60: [["CMP/PZ", "Rn"], Group.MT, 1, 1, Patterns[1]],
-        61: [["CMP/STR", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
+        49: {asm: ["ADD", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        50: {asm: ["ADD", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        51: {asm: ["ADDC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        52: {asm: ["ADDV", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        53: {asm: ["CMP/EQ", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        54: {asm: ["CMP/EQ", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        55: {asm: ["CMP/GE", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        56: {asm: ["CMP/GT", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        57: {asm: ["CMP/HI", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        58: {asm: ["CMP/HS", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        59: {asm: ["CMP/PL", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        60: {asm: ["CMP/PZ", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        61: {asm: ["CMP/STR", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
 
-        78: [["AND", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        79: [["AND", "#imm","R0"], Group.EX, 1, 1, Patterns[1]],
-        
-        81: [["NOT", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        82: [["OR", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        83: [["OR", "#imm","R0"], Group.EX, 1, 1, Patterns[1]],
+        78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
 
-        86: [["TST", "Rm","Rn"], Group.MT, 1, 1, Patterns[1]],
-        87: [["TST", "#imm","R0"], Group.MT, 1, 1, Patterns[1]],
-        89: [["XOR", "Rm","Rn"], Group.EX, 1, 1, Patterns[1]],
-        90: [["XOR", "#imm","R0"], Group.EX, 1, 1, Patterns[1]],
+        81: {asm: ["NOT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        83: {asm: ["OR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+
+        86: {asm: ["TST", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+        87: {asm: ["TST", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1] },
+
+        89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
+        90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1] },
     };
 
     // Registers
@@ -214,6 +215,10 @@ mov.l @r0, r0
                 });
             });
         }, [[]]);
+    }
+
+    function deepcopy(v) {
+        return JSON.parse(JSON.stringify(v))
     }
 
     function getVariants(str) {
@@ -235,7 +240,7 @@ mov.l @r0, r0
     for (const index of Object.keys(Instructions)) {
         const insn = Instructions[index];
 
-        const parts = insn[0];
+        const parts = insn.asm;
 
         let insn_variants = cartesianProduct(parts.map(getVariants));
         for (insn_variant of insn_variants) {
@@ -245,15 +250,16 @@ mov.l @r0, r0
 
     function assemble(lines) {
         let rv = []
+        let pc = 0;
         for (line of lines.split("\n")) {
             let processed = line.split(/(;|\/\/)/)[0].trim();
 
             if (processed.length) {
                 processed = processed.replace(/\s+/, " ").replace(", ", ",").toLowerCase();
-                let insn = instructions_rainbow[processed];
-                if (!insn)
+                let def = instructions_rainbow[processed];
+                if (!def)
                     return null;
-                rv.push({text: processed, insn: insn});
+                rv.push({pc: pc++, text: processed, def: def, pipe: -1, step: -1});
             }
         }
 
@@ -277,7 +283,7 @@ mov.l @r0, r0
             tableArray.forEach(colData => {
                 // Create a new cell (td element)
                 const cell = document.createElement('td');
-                cell.textContent = colData[rowIndex]; // Set the cell's text content
+                cell.innerHTML = colData[rowIndex]; // Set the cell's text content
                 cell.style.border = '1px solid black'; // Optional: Add a border to the cell
                 cell.style.padding = '5px'; // Optional: Add some padding
 
@@ -294,7 +300,6 @@ mov.l @r0, r0
         document.querySelector(".result").appendChild(table);
     }
 
-
     function do_sim() {
         let insns = assemble(document.querySelector(".src").value)
         if (!insns) {
@@ -304,73 +309,68 @@ mov.l @r0, r0
 
         document.body.classList.remove("error")
 
-        let insn0 = null
-        let insn1 = null
-
-        let stage0 = 0
-        let stage1 = 0
-
-        let pc0 = null
-        let pc1 = null
-
         let pc = 0;
         let cycle = 0;
+        let in_flight = []
 
         let table = [];
+
+        pipelines = Array.from({ length: Stage.Count }, (_, index) => [null, null] )
 
         table.push(insns.map(x => x.text))
         table[0].unshift("inst\\cycle");
 
+        function allPipesClear() {
+            return pipelines.every(x => x.every(x => x == null));
+        }
+
         for(;;) {
-            if (insn0 == null && insn1 == null && pc == insns.length)
+            if (allPipesClear() && pc == insns.length)
                 break;
             cycle++;
             
-            table.push(Array.from({length: insns.length}))
+            table.push(Array.from({length: insns.length}, (_, index) => ``))
             let last_column = table[table.length - 1];
 
-            if (insn0 == null && insn1) {
-                insn0 = insn1;
-                stage0 = stage1;
-                pc0 = pc1
-                insn1 = null
+
+            for (let pipe = 0; pipe < 2; pipe++) {
+                if (pipelines[Stage.I][pipe] === null && pc != insns.length) {
+                    let insn = insns[pc++];
+                    pipelines[Stage.I][pipe] = insn;
+                    insn.step = 0;
+                    insn.pipe = pipe;
+                    in_flight.push(insn)
+                }    
             }
 
-            if (insn0 == null && pc != insns.length) {
-                pc0 = pc
-                insn0 = insns[pc++];
-                stage0 = 0
-            }
+            let toremove = [];
+            for (insn of in_flight) {
+                last_column[insn.pc] = StageNames[insn.def.pattern[0][insn.step]]
+                if ((insn.step + 1) === insn.def.pattern[0].length) {
+                    toremove.push(insn);
+                    pipelines[insn.def.pattern[0][insn.step]][insn.pipe] = null;
+                    continue
+                }
 
-            if (insn1 == null && pc != insns.length) {
-                pc1 = pc
-                insn1= insns[pc++];
-                stage1 = 0
-            }
-
-            last_column[pc0] = StageNames[insn0.insn[4][0][stage0]];
-            const dual_issue = insn1 != null && 
-                (
-                    insn0.insn[4][0][stage0] != insn1.insn[4][0][stage1] || 
-                    isParallel(insn0.insn[1], insn1.insn[1])
-                );
-
-            stage0++;
-            if (stage0 == insn0.insn[4][0].length)
-                insn0 = null
-
-            if (insn1 != null) {
-                if (!dual_issue) {
-                    last_column[pc1] = `*${StageNames[insn1.insn[4][0][stage1]]}*`;
+                if (pipelines[insn.def.pattern[0][insn.step+1]].every(x => x == null || isParallel(x.def.group, insn.def.group))) {
+                    pipelines[insn.def.pattern[0][insn.step]][insn.pipe] = null;
+                    insn.step = insn.step + 1;
+                    if (pipelines[insn.def.pattern[0][insn.step]][0] == null) {
+                        pipelines[insn.def.pattern[0][insn.step]][0] = insn;
+                        insn.pipe = 0
+                    } else {
+                        pipelines[insn.def.pattern[0][insn.step]][1] = insn;
+                        insn.pipe = 1
+                    }
                 } else {
-                    last_column[pc1] = StageNames[insn1.insn[4][0][stage1]];
-
-                    stage1++;
-                    if (stage1 == insn1.insn[4][0].length)
-                        insn1 = null
+                    last_column[insn.pc] =`*${last_column[insn.pc]}*`;
                 }
             }
 
+            for (insn of toremove) {
+                in_flight = in_flight.filter(e => e !== insn)
+            }
+            
             last_column.unshift(cycle)
         }
 
