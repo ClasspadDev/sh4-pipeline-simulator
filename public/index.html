@@ -6,7 +6,7 @@
     <title>SH4 Pipeline Simulator</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: monospace;
             background-color: #f4f4f4;
             margin: 2em;
             padding: 0;
@@ -27,6 +27,16 @@
 
         td {
             cursor: help;
+            min-width: 3em;
+        }
+
+        td:not(:first-child) {
+            text-align: center;
+        }
+
+        tr:first-child td:first-child {
+            font-weight: bold;
+            text-align: center;
         }
     </style>
 </head>
@@ -34,6 +44,13 @@
 
 <h1>SH4 Pipeline Simulator</h1>
 <textarea class="src" oninput="do_sim()">
+mov	r5,r1
+add	r1,r1
+add	r1,r5
+mov	r5,r0
+shll2	r0
+shll2	r0
+sub	r5,r0
 add r0, r0
 MOV R0, R0
 mov 0, r0 ; this is a test
@@ -43,7 +60,7 @@ add r0, r0
 MOV R0, R0
 mov 0, r0 ; this is a test
 add r0, r0
-mov.l @r0, r0    
+mov.l @r0, r0
 </textarea>
 
 <div class="result">
@@ -197,6 +214,10 @@ mov.l @r0, r0
         return [...reads_rmn.apply(this), "SR"];
     }
 
+    function writes_rnsr() {
+        return [...reads_rn.apply(this), "SR"];
+    }
+
     function reads_r0() {
         return ["R0"];
     }
@@ -233,6 +254,8 @@ mov.l @r0, r0
         60: {asm: ["CMP/PZ", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_sr },
         61: {asm: ["CMP/STR", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
 
+        75: {asm: ["SUB", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
+
         78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
         79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_r0 },
 
@@ -245,6 +268,15 @@ mov.l @r0, r0
 
         89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
         90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_r0, writes: writes_r0  },
+
+        100: {asm: ["SHLL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
+        101: {asm: ["SHLL2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+        102: {asm: ["SHLL8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+        103: {asm: ["SHLL16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+        104: {asm: ["SHLR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
+        105: {asm: ["SHLR2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+        106: {asm: ["SHLR8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+        107: {asm: ["SHLR16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
     };
 
     // Registers
@@ -307,7 +339,8 @@ mov.l @r0, r0
                 let def = instructions_rainbow[processed];
                 if (!def)
                     return null;
-                rv.push({pc: pc++, text: processed, def: def, pipe: -1, step: -1});
+                rv.push({pc: pc, text: processed, def: def, pipe: -1, step: -1});
+                pc += 2;
             }
         }
 
@@ -367,8 +400,8 @@ mov.l @r0, r0
 
         pipelines = Array.from({ length: Stage.Count }, (_, index) => [null, null] )
 
-        table.push(insns.map(x => { return { text: x.text, explanation:`pc: ${pc}` } }))
-        table[0].unshift({text: "inst\\cycle", explanation: "Instruction number vs Cycle number"});
+        table.push(insns.map(x => { return { text: `${x.pc.toString(16).padStart(8,"0")} ${x.text}`, explanation:`pc: ${x.pc.toString(16)}` } }))
+        table[0].unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
 
         function allPipesClear() {
             return pipelines.every(x => x.every(x => x == null));
@@ -424,7 +457,7 @@ mov.l @r0, r0
 
             let toremove = [];
             for (insn of in_flight) {
-                last_column[insn.pc] = {text: StageNames[insn.def.pattern[0][insn.step]], explanation: "Current stage"};
+                last_column[insn.pc/2] = {text: StageNames[insn.def.pattern[0][insn.step]], explanation: "Current stage"};
                 if (insn.step == insn.def.latency + 2) {
                     insn.def.writes().forEach(reg => provides[reg] = provides[reg].filter(e => e !== insn));
                 }
@@ -437,9 +470,9 @@ mov.l @r0, r0
                 let current_stage = insn.def.pattern[0][insn.step];
                 let next_stage = insn.def.pattern[0][insn.step+1];
                 if (!pipelines[next_stage].every(x => x == null || isParallel(x.def.group, insn.def.group))) {
-                    last_column[insn.pc] = { text: `*${last_column[insn.pc].text}*`, explanation: `Resource hazard: ${insn.def.group}, ${pipelines[next_stage].filter(x => x != null && !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
+                    last_column[insn.pc/2] = { text: `*${last_column[insn.pc/2].text}*`, explanation: `Resource hazard: ${insn.def.group}, ${pipelines[next_stage].filter(x => x != null && !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
                 } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc] = { text: `|${last_column[insn.pc].text}|`, explanation: `Data hazard: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
+                    last_column[insn.pc/2] = { text: `|${last_column[insn.pc/2].text}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
                 } else {
                     pipelines[insn.def.pattern[0][insn.step]][insn.pipe] = null;
                     insn.step = insn.step + 1;
@@ -458,7 +491,7 @@ mov.l @r0, r0
                 in_flight = in_flight.filter(e => e !== insn)
             }
             
-            last_column.unshift({text: cycle, explanation: "Cycle number"})
+            last_column.unshift({text: cycle, explanation: "Cycle Number"})
         }
 
         generateTable(table);
