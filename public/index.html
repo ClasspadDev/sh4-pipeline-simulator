@@ -215,6 +215,10 @@ mov.l @r0, r0
     }
 
     function writes_rnsr() {
+        return [...writes_rn.apply(this), "SR"];
+    }
+
+    function reads_rnsr() {
         return [...reads_rn.apply(this), "SR"];
     }
 
@@ -269,6 +273,14 @@ mov.l @r0, r0
         89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
         90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_r0, writes: writes_r0  },
 
+        92: {asm: ["ROTL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
+        93: {asm: ["ROTR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
+        94: {asm: ["ROTCL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
+        95: {asm: ["ROTCR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
+        96: {asm: ["SHAD", "Rm", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
+        97: {asm: ["SHAL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
+        98: {asm: ["SHAR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
+        99: {asm: ["SHLD", "Rm", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
         100: {asm: ["SHLL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
         101: {asm: ["SHLL2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
         102: {asm: ["SHLL8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
