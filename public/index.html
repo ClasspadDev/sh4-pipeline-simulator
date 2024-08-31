@@ -23,11 +23,19 @@
 
         .result {
             white-space: nowrap;
+            overflow:scroll;
+        }
+
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
         }
 
         td {
             cursor: help;
             min-width: 3em;
+
+            border: 1px solid black; padding: 5px;
         }
 
         td:not(:first-child) {
@@ -38,33 +46,46 @@
             font-weight: bold;
             text-align: center;
         }
+
+        tr td:first-child {
+            position: sticky;
+            left: 0px;
+            border-right: 2px solid black;
+        }
+
+        tr:nth-child(even), tr:nth-child(even) td {
+            background-color: #e2e2e2;
+        }
+        tr:nth-child(odd), tr:nth-child(odd) td {
+            background-color: #f4f4f4;
+        }
     </style>
 </head>
 <body>
-
-<h1>SH4 Pipeline Simulator</h1>
-<textarea class="src" oninput="do_sim()">
-MOV.L	 @R1,R1
-ADD	 R0,R1
-mov	r5,r1
-add	r1,r1
-add	r1,r5
-mov	r5,r0
-shll2	r0
-shll2	r0
-sub	r5,r0
-add r0, r0
-MOV R0, R0
-mov 0, r0 ; this is a test
-add r0, r0
-mov.l @r0, r0
-add r0, r0
-MOV R0, R0
-mov 0, r0 ; this is a test
-add r0, r0
-mov.l @r0, r0
-</textarea>
-
+<div class="desc">
+    <h1>SH4 Pipeline Simulator</h1>
+    <textarea class="src" oninput="do_sim()">
+    MOV.L	 @R1,R1
+    ADD	 R0,R1
+    mov	r5,r1
+    add	r1,r1
+    add	r1,r5
+    mov	r5,r0
+    shll2	r0
+    shll2	r0
+    sub	r5,r0
+    add r0, r0
+    MOV R0, R0
+    mov 0, r0 ; this is a test
+    add r0, r0
+    mov.l @r0, r0
+    add r0, r0
+    MOV R0, R0
+    mov 0, r0 ; this is a test
+    add r0, r0
+    mov.l @r0, r0
+    </textarea>
+</div>
 <div class="result">
 
 </div>
@@ -429,8 +450,7 @@ mov.l @r0, r0
 
         // Create a table element
         const table = document.createElement('table');
-        table.style.borderCollapse = 'collapse'; // Optional: Makes the table borders collapse
-
+        
         // Iterate over each row index
         for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
             // Create a new row
@@ -442,8 +462,6 @@ mov.l @r0, r0
                 const cell = document.createElement('td');
                 cell.title = colData[rowIndex].explanation;
                 cell.innerHTML = colData[rowIndex].text; // Set the cell's text content
-                cell.style.border = '1px solid black'; // Optional: Add a border to the cell
-                cell.style.padding = '5px'; // Optional: Add some padding
 
                 // Append the cell to the row
                 row.appendChild(cell);
