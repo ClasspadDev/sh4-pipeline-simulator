@@ -398,7 +398,7 @@ mov.l @r0, r0
             insn_rain.reads = insn.reads;
             insn_rain.writes = insn.writes;
             insn_rain.variant = insn_variant;
-            instructions_rainbow[(insn_variant[0] + " " + insn_variant.slice(1).join(",")).toLowerCase()] = insn_rain;
+            instructions_rainbow[((insn_variant[0] + " " + insn_variant.slice(1).join(",")).toLowerCase()).trim()] = insn_rain;
         }
     }
 
