@@ -114,6 +114,11 @@
         .tooltiptext:hover {
             display: none !important;
         }
+
+        .marked {
+            background-color: #3a443c !important;
+            color: wheat;
+        }
     </style>
 </head>
 <body>
@@ -609,6 +614,9 @@
                     if (colData[rowIndex].full) {
                         cell.classList.add("full");
                     }
+                    if (colData[rowIndex].relevant) {
+                        cell.setAttribute("data-relevant", colData[rowIndex].relevant);
+                    }
                 }
 
                 // Append the cell to the row
@@ -643,7 +651,7 @@
         let initial_column = Array.from({length: insns.tracks}, (_, index) => null);
         for (let i = 0; i < insns.length; i++) {
             initial_column[insns[i].track] = {
-                id: insns[i].pc,
+                id: `insn-${insns[i].pc}`,
                 text: insns[i].format(), 
                 explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` 
             };
@@ -717,16 +725,24 @@
                 const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage);
 
                 if (in_next_stage.length == 2 ) {
+                    relevant_seqs = in_next_stage;
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br />")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
                     seq.stall = true;
                 } else if ( !in_next_stage.every(x => isParallel(x.group, seq.group))) {
+                    let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
+                    let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
+                    let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
                     seq.stall = true;
                 } else {
                     seq.stall = false;
@@ -785,6 +801,17 @@
     }
 
     do_sim();
+
+    document.addEventListener("mouseover", function(e) {
+        document.querySelectorAll(".marked").forEach(x => x.classList.remove("marked"));
+
+        if (e.target.getAttribute("data-relevant")) {
+            let relevant_pcs = JSON.parse(e.target.getAttribute("data-relevant"));
+            for (pc of relevant_pcs) {
+                document.getElementById(`insn-${pc}`).classList.add("marked");
+            }
+        }
+    });
 </script>
 
 </body>
