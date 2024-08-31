@@ -565,6 +565,8 @@ mov.l @r0, r0
                     last_column[insn.pc/2] = { text: `*${last_column[insn.pc/2].text}*`, explanation: `Resource hazard: ${insn.def.group}, ${pipelines[next_stage].filter(x => x != null && !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
                 } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
                     last_column[insn.pc/2] = { text: `|${last_column[insn.pc/2].text}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
+                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
+                    last_column[insn.pc/2] = { text: `^${last_column[insn.pc/2].text}^`, explanation: `Output Dependency: ${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
                 } else {
                     pipelines[insn.def.pattern[0][insn.step]][insn.pipe] = null;
                     insn.step = insn.step + 1;
