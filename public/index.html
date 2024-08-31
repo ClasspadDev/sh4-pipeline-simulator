@@ -61,9 +61,12 @@
             background-color: #f4f4f4;
         }
 
+        td.full {
+            background-color: #20A040 !important;
+            color: wheat;
+        }
         td.stall {
             background-color: #804020 !important;
-            font-style: bold;
             color: wheat;
         }
 
@@ -519,6 +522,9 @@
                 if (colData[rowIndex].stall) {
                     cell.classList.add("stall");
                 }
+                if (colData[rowIndex].full) {
+                    cell.classList.add("full");
+                }
 
                 // Append the cell to the row
                 row.appendChild(cell);
@@ -620,14 +626,19 @@
                 const in_next_stage = in_flight.filter(x => x != insn && x.def.pattern[0][x.step] == next_stage);
 
                 if (in_next_stage.length == 2 ) {
-                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.def.group}: ${x.text}]`).join("<br />")}` };
+                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.def.group}: ${x.text}]`).join("<br />")}` };
+                    insn.stall = true;
                 } else if ( !in_next_stage.every(x => isParallel(x.def.group, insn.def.group))) {
-                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}, ${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
+                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}<br/>${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join("<br/>")}` };
+                    insn.stall = true;
                 } else if ( (current_stage != Stage.I) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
                     last_column[insn.pc/2] = { stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`)).flat(Infinity).join("<br/>")}` };
+                    insn.stall = true;
                 } else if ( (current_stage != Stage.I) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
                     last_column[insn.pc/2] = { stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`)).flat(Infinity).join("<br/>")}` };
+                    insn.stall = true;
                 } else {
+                    insn.stall = false;
                     insn.step++;
 
                     if (!next_stage) {
@@ -648,10 +659,21 @@
                 let insn = insns[pc++];
                 insn.step = 0;
                 insn.program_order = program_order++;
+                insn.stall = false;
                 in_flight.push(insn);
                 insn.def.writes().forEach(reg => provides[reg].push(insn));
                 last_column[insn.pc/2] = {text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
             }
+
+            for (let stage = 0; stage < Stage.Count; stage++) {
+                const in_stage_exec = in_flight.filter(x => x.def.pattern[0][x.step] == stage && !x.stall);
+                if (in_stage_exec.length == 2) {
+                    in_stage_exec.forEach(insn => {
+                        last_column[insn.pc/2].full = true;
+                        last_column[insn.pc/2].explanation += `<br/>Fully Utilized`;
+                    });
+                }
+            }   
 
             cycle++;
             last_column.unshift({text: cycle, explanation: "Cycle Number"})
