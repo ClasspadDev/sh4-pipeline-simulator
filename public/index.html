@@ -44,6 +44,8 @@
 
 <h1>SH4 Pipeline Simulator</h1>
 <textarea class="src" oninput="do_sim()">
+MOV.L	 @R1,R1
+ADD	 R0,R1
 mov	r5,r1
 add	r1,r1
 add	r1,r5
@@ -527,7 +529,7 @@ mov.l @r0, r0
 
             let toremove = [];
             for (insn of in_flight) {
-                if (insn.step == insn.def.latency + 2) {
+                if (insn.step == insn.def.latency + 1) {
                     insn.def.writes().forEach(reg => provides[reg] = provides[reg].filter(e => e !== insn));
                 }
                     
@@ -537,11 +539,11 @@ mov.l @r0, r0
 
                 const in_next_stage = in_flight.filter(x => x != insn && x.def.pattern[0][x.step] == next_stage);
 
-                if (!in_next_stage.every(x => isParallel(x.def.group, insn.def.group))) {
+                if (in_next_stage.length == 2 || !in_next_stage.every(x => isParallel(x.def.group, insn.def.group))) {
                     last_column[insn.pc/2] = { text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}, ${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
-                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
+                } else if ( (current_stage != Stage.I) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
                     last_column[insn.pc/2] = { text: `|${current_stage_name}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
-                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
+                } else if ( (current_stage != Stage.I) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
                     last_column[insn.pc/2] = { text: `^${current_stage_name}^`, explanation: `Output Dependency: ${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
                 } else {
                     insn.step++;
@@ -549,7 +551,7 @@ mov.l @r0, r0
                     if (!next_stage) {
                         toremove.push(insn);
                     } else {
-                        last_column[insn.pc/2] = {text: StageNames[next_stage], explanation: "No Stall"};
+                        last_column[insn.pc/2] = {text: StageNames[next_stage], explanation: `No Stall, Group: ${insn.def.group}`};
                     }
                 }
             }
@@ -566,7 +568,7 @@ mov.l @r0, r0
                 insn.program_order = program_order++;
                 in_flight.push(insn);
                 insn.def.writes().forEach(reg => provides[reg].push(insn));
-                last_column[insn.pc/2] = {text: StageNames[Stage.I], explanation: "No Stall"};
+                last_column[insn.pc/2] = {text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
             }
 
             cycle++;
