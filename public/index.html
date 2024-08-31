@@ -533,7 +533,12 @@
                 let def = instructions_rainbow[processed];
                 if (!def)
                     return null;
-                rv.push({pc: pc, track: track, text: processed, def: def, pipe: -1, step: -1});
+                rv.push({
+                    pc: pc, track: track, text: processed, def: def, pipe: -1, step: -1,
+                    format: function() {
+                        return `${this.pc.toString(16).padStart(8,"0")} ${this.text}`;
+                    }
+                });
                 track += def.pattern.length;
                 pc += 2;
             }
@@ -595,6 +600,9 @@
                         cell.innerHTML = `<span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}`;
                     }
                     cell.classList.add("tooltip");
+                    if (colData[rowIndex].id) {
+                        cell.id = colData[rowIndex].id;
+                    }
                     if (colData[rowIndex].stall) {
                         cell.classList.add("stall");
                     }
@@ -635,7 +643,8 @@
         let initial_column = Array.from({length: insns.tracks}, (_, index) => null);
         for (let i = 0; i < insns.length; i++) {
             initial_column[insns[i].track] = {
-                text: `${insns[i].pc.toString(16).padStart(8,"0")} ${insns[i].text}`, 
+                id: insns[i].pc,
+                text: insns[i].format(), 
                 explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` 
             };
         }
@@ -708,16 +717,16 @@
                 const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage);
 
                 if (in_next_stage.length == 2 ) {
-                    last_column[seq.track] = { seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.text}]`).join("<br />")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br />")}` };
                     seq.stall = true;
                 } else if ( !in_next_stage.every(x => isParallel(x.group, seq.group))) {
-                    last_column[seq.track] = { seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.text}]`).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
-                    last_column[seq.track] = { seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
-                    last_column[seq.track] = { seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
                     seq.stall = true;
                 } else {
                     seq.stall = false;
@@ -726,7 +735,7 @@
                     if (!next_stage) {
                         toremove.push(seq);
                     } else {
-                        last_column[seq.track] = { seq: seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}` };
+                        last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}` };
                     }
                 }
             }
@@ -735,7 +744,7 @@
                 if (!seq.stall && seq.kick()) {
                     let kick_seq = getSeq(seq.insn, seq.kick(), seq.program_order);
                     in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
-                    last_column[kick_seq.track] = {seq: kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}`};
+                    last_column[kick_seq.track] = {id: `step-${seq.track}-${cycle}`, seq: kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}`};
                 }
             }
 
@@ -750,7 +759,7 @@
                 let seq = getSeq(insn, 0, program_order++);
                 in_flight.push(seq);
                 insn.def.writes().forEach(reg => provides[reg].push(seq));
-                last_column[seq.track] = {seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
+                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
             }
 
             for (let stage = 0; stage < Stage.Count; stage++) {
@@ -767,8 +776,8 @@
                 }
             }
 
-            cycle++;
             last_column.unshift({text: cycle, explanation: "Cycle Number"})
+            cycle++;
         }
 
         generateTable(table);
