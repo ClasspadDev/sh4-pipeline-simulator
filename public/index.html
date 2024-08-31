@@ -472,14 +472,8 @@ mov.l @r0, r0
 
         let table = [];
 
-        pipelines = Array.from({ length: Stage.Count }, (_, index) => [null, null] )
-
         table.push(insns.map(x => { return { text: `${x.pc.toString(16).padStart(8,"0")} ${x.text}`, explanation:`pc: ${x.pc.toString(16)}` } }))
         table[0].unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
-
-        function allPipesClear() {
-            return pipelines.every(x => x.every(x => x == null));
-        }
 
         let provides = { 
             "R0":  [],
@@ -525,58 +519,37 @@ mov.l @r0, r0
         }
 
         for(;;) {
-            if (allPipesClear() && pc == insns.length)
+            if (in_flight.length == 0 && pc == insns.length)
                 break;
-            cycle++;
             
             table.push(Array.from({length: insns.length}, (_, index) => { return { text: "", explanation: ""}}));
             let last_column = table[table.length - 1];
 
-
-            for (let pipe = 0; pipe < 2; pipe++) {
-                if (pipelines[Stage.I][pipe] === null && pc != insns.length) {
-                    let insn = insns[pc++];
-                    insn.program_order = program_order++;
-
-                    pipelines[Stage.I][pipe] = insn;
-                    insn.step = 0;
-                    insn.pipe = pipe;
-                    in_flight.push(insn)
-
-                    insn.def.writes().forEach(reg => provides[reg].push(insn));
-                }    
-            }
-
             let toremove = [];
             for (insn of in_flight) {
-                last_column[insn.pc/2] = {text: StageNames[insn.def.pattern[0][insn.step]], explanation: "Current stage"};
                 if (insn.step == insn.def.latency + 2) {
                     insn.def.writes().forEach(reg => provides[reg] = provides[reg].filter(e => e !== insn));
                 }
-                if ((insn.step + 1) === insn.def.pattern[0].length) {
-                    toremove.push(insn);
-                    pipelines[insn.def.pattern[0][insn.step]][insn.pipe] = null;
-                    continue
-                }
-
+                    
                 let current_stage = insn.def.pattern[0][insn.step];
                 let next_stage = insn.def.pattern[0][insn.step+1];
-                if (!pipelines[next_stage].every(x => x == null || isParallel(x.def.group, insn.def.group))) {
-                    last_column[insn.pc/2] = { text: `*${last_column[insn.pc/2].text}*`, explanation: `Resource hazard: ${insn.def.group}, ${pipelines[next_stage].filter(x => x != null && !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
-                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc/2] = { text: `|${last_column[insn.pc/2].text}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
-                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc/2] = { text: `^${last_column[insn.pc/2].text}^`, explanation: `Output Dependency: ${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
-                } else {
-                    pipelines[insn.def.pattern[0][insn.step]][insn.pipe] = null;
-                    insn.step = insn.step + 1;
+                let current_stage_name = StageNames[current_stage];
 
-                    if (pipelines[insn.def.pattern[0][insn.step]][0] == null) {
-                        pipelines[insn.def.pattern[0][insn.step]][0] = insn;
-                        insn.pipe = 0
+                const in_next_stage = in_flight.filter(x => x != insn && x.def.pattern[0][x.step] == next_stage);
+
+                if (!in_next_stage.every(x => isParallel(x.def.group, insn.def.group))) {
+                    last_column[insn.pc/2] = { text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}, ${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
+                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
+                    last_column[insn.pc/2] = { text: `|${current_stage_name}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
+                } else if ( (current_stage != Stage.I && current_stage != Stage.D) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
+                    last_column[insn.pc/2] = { text: `^${current_stage_name}^`, explanation: `Output Dependency: ${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
+                } else {
+                    insn.step++;
+
+                    if (!next_stage) {
+                        toremove.push(insn);
                     } else {
-                        pipelines[insn.def.pattern[0][insn.step]][1] = insn;
-                        insn.pipe = 1
+                        last_column[insn.pc/2] = {text: StageNames[next_stage], explanation: "No Stall"};
                     }
                 }
             }
@@ -584,7 +557,19 @@ mov.l @r0, r0
             for (insn of toremove) {
                 in_flight = in_flight.filter(e => e !== insn)
             }
-            
+
+            const in_i_stage = in_flight.filter(insn => insn.def.pattern[0][insn.step] == Stage.I);
+
+            for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
+                let insn = insns[pc++];
+                insn.step = 0;
+                insn.program_order = program_order++;
+                in_flight.push(insn);
+                insn.def.writes().forEach(reg => provides[reg].push(insn));
+                last_column[insn.pc/2] = {text: StageNames[Stage.I], explanation: "No Stall"};
+            }
+
+            cycle++;
             last_column.unshift({text: cycle, explanation: "Cycle Number"})
         }
 
