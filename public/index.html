@@ -634,7 +634,7 @@
         }
 
         for(;;) {
-            if (in_flight.length == 0 && pc == insns.length)
+            if (in_flight.length == 0 && pc == insns.length || cycle > 10000)
                 break;
             
             table.push(Array.from({length: insns.length}, (_, index) => []));
@@ -646,12 +646,12 @@
                     seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
                 }
                     
-                let current_stage = seq[seq.step];
-                let next_stage = seq[seq.step+1];
+                let current_stage = seq.stage();
+                let next_stage = seq.next_stage();
                 let current_stage_name = StageNames[current_stage];
                 let next_stage_name = StageNames[next_stage];
 
-                const in_next_stage = in_flight.filter(x => x != seq && x[x.step] == next_stage);
+                const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage);
 
                 if (in_next_stage.length == 2 ) {
                     last_column[seq.pc/2].push({ seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.text}]`).join("<br />")}` });
@@ -681,11 +681,22 @@
                 in_flight = in_flight.filter(e => e !== seq)
             }
 
-            const in_i_stage = in_flight.filter(seq => seq[seq.step] == Stage.I);
+            const in_i_stage = in_flight.filter(seq => seq.stage() == Stage.I);
 
             for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
                 let insn = insns[pc++];
-                let seq = deepcopy(insn.def.pattern[0]);
+                let seq = {};
+                seq.stage = function() {
+                    return this.pattern[this.step] & Stage.Mask;
+                }
+                seq.next_stage = function() {
+                    let rv = this.pattern[this.step + 1];
+                    return rv ? rv & Stage.Mask : rv;
+                }
+                seq.is_last_stage = function() {
+                    return this.step == this.pattern.length - 1;
+                }
+                seq.pattern = deepcopy(insn.def.pattern[0]);
                 seq.step = 0;
                 seq.program_order = program_order++;
                 seq.stall = false;
@@ -702,7 +713,7 @@
             }
 
             for (let stage = 0; stage < Stage.Count; stage++) {
-                const in_stage_exec = in_flight.filter(seq => seq[seq.step] == stage && !seq.stall);
+                const in_stage_exec = in_flight.filter(seq => seq.stage() == stage && !seq.stall);
                 if (in_stage_exec.length == 2) {
                     in_stage_exec.forEach(seq => {
                         last_column[seq.insn.pc/2].forEach(x => {
