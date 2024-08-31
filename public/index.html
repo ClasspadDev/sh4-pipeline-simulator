@@ -148,7 +148,10 @@
 <script>
 
     const Flags = {
-        L: 16,
+        L: 16, // Lock
+        K: 32, // Kick
+        KShift: 6,
+        Kick(x) { return (x << this.KShift) | this.K; }
     }
 
     const Stage = {
@@ -164,8 +167,7 @@
         S: 10,
         FS: 11,
         Count: 12,
-
-        DL: 2 /* D */ | Flags.L
+        Mask: 15
     };
 
     const StageNames = { }
@@ -236,18 +238,19 @@
 
         // AND.B, OR.B, XOR.B: 4 issue cycles
         6: [
-            [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S]
-            [null   , null   , Stage.DL, Stage.SX, Stage.NA, Stage.S],
-            [null   , null   , null    , Stage.DL, Stage.SX, Stage.NA, Stage.S]
-            [null   , null   , null    , null    , Stage.DL, Stage.SX, Stage.MA, Stage.S]
+            [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S]
+            [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
+            [Stage.D | Flags.L, Stage.SX | Flags.Kick(3), Stage.NA, Stage.S],
+            [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S],
         ],
 
         // TAS.B: 5 issue cycles
         6: [
-            [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S]
-            [null   , null   , Stage.DL, Stage.EX, Stage.NA, Stage.S],
-            [null   , null   , null    , Stage.DL, Stage.EX, Stage.NA, Stage.S]
-            [null   , null   , null    , null    , Stage.DL, Stage.EX, Stage.MA, Stage.S]
+            [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S]
+            [Stage.D | Flags.L, Stage.EX | Flags.Kick(2), Stage.NA, Stage.S],
+            [Stage.D | Flags.L, Stage.EX | Flags.Kick(3), Stage.NA, Stage.S],
+            [Stage.D | Flags.L, Stage.EX | Flags.Kick(4), Stage.NA, Stage.S],
+            [Stage.D | Flags.L, Stage.EX, Stage.MA, Stage.S],
         ],
 
         // Single-precision floating-point computation: 1 issue cycle
@@ -336,6 +339,10 @@
         return [...new Set([this.variant[index_of_part(this.asm, "FRn")], "R0", this.variant[index_of_part(this.asm, "Rn")]])];
     }
 
+    function reads_r0gbr() {
+        return ["R0", "GBR"];
+    }
+
 
     const Instructions = {
          1: {asm: ["EXTS.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
@@ -376,6 +383,7 @@
 
         78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
         79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_r0 },
+        80: {asm: ["AND.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: 4, pattern: Patterns[6], reads: reads_r0gbr, writes: writes_none },
 
         81: {asm: ["NOT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn  },
         82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
@@ -515,15 +523,17 @@
             tableArray.forEach(colData => {
                 // Create a new cell (td element)
                 const cell = document.createElement('td');
-                if (colData[rowIndex].explanation) {
-                    cell.innerHTML = `<span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}`;
-                }
-                cell.classList.add("tooltip");
-                if (colData[rowIndex].stall) {
-                    cell.classList.add("stall");
-                }
-                if (colData[rowIndex].full) {
-                    cell.classList.add("full");
+                if (colData[rowIndex]) {
+                    if (colData[rowIndex].explanation) {
+                        cell.innerHTML = `<span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}`;
+                    }
+                    cell.classList.add("tooltip");
+                    if (colData[rowIndex].stall) {
+                        cell.classList.add("stall");
+                    }
+                    if (colData[rowIndex].full) {
+                        cell.classList.add("full");
+                    }
                 }
 
                 // Append the cell to the row
@@ -537,6 +547,23 @@
         // Append the table to the body (or any other container element)
         document.querySelector(".result").innerHTML = ""
         document.querySelector(".result").appendChild(table);
+    }
+
+    function convertToRowMajor(table) {
+        const numRows = table.length;
+        const numCols = table[0].length;
+
+        const rowMajorTable = [];
+
+        for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+            const row = [];
+            for (let colIndex = 0; colIndex < numCols; colIndex++) {
+                row.push(table[rowIndex][colIndex]);
+            }
+            rowMajorTable.push(row);
+        }
+
+        return rowMajorTable;
     }
 
     function do_sim() {
@@ -555,12 +582,12 @@
 
         let table = [];
 
-        table.push(insns.map(x => { return { 
+        table.push(insns.map(x => [{
             text: `${x.pc.toString(16).padStart(8,"0")} ${x.text}`, 
             explanation:`group: ${x.def.group}, issue: ${x.def.issue}, latency: ${x.def.latency}${x.def.desc ? "<br/>" + x.def.desc : ""}` 
-        } }));
+        }]));
 
-        table[0].unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
+        table[0].unshift([{text: "inst\\cycle", explanation: "Instruction vs Cycle Number"}]);
 
         let provides = { 
             "R0":  [],
@@ -598,88 +625,115 @@
             "FR15": [],
 
             "SR": [],
-            "FPUL": []
+            "FPUL": [],
+            "GBR": []
         };
 
-        function data_provided_by(insn, provide_insns) {
-            return provide_insns.some(x => x.program_order < insn.program_order);
+        function data_provided_by(provide_seqs, seq) {
+            return provide_seqs.some(x => x.program_order < seq.program_order);
         }
 
         for(;;) {
             if (in_flight.length == 0 && pc == insns.length)
                 break;
             
-            table.push(Array.from({length: insns.length}, (_, index) => { return { text: "", explanation: ""}}));
+            table.push(Array.from({length: insns.length}, (_, index) => []));
             let last_column = table[table.length - 1];
 
             let toremove = [];
-            for (insn of in_flight) {
-                if (insn.step == insn.def.latency + 1) {
-                    insn.def.writes().forEach(reg => provides[reg] = provides[reg].filter(e => e !== insn));
+            for (seq of in_flight) {
+                if (seq.step == seq.latency + 1) {
+                    seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
                 }
                     
-                let current_stage = insn.def.pattern[0][insn.step];
-                let next_stage = insn.def.pattern[0][insn.step+1];
+                let current_stage = seq[seq.step];
+                let next_stage = seq[seq.step+1];
                 let current_stage_name = StageNames[current_stage];
                 let next_stage_name = StageNames[next_stage];
 
-                const in_next_stage = in_flight.filter(x => x != insn && x.def.pattern[0][x.step] == next_stage);
+                const in_next_stage = in_flight.filter(x => x != seq && x[x.step] == next_stage);
 
                 if (in_next_stage.length == 2 ) {
-                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.def.group}: ${x.text}]`).join("<br />")}` };
-                    insn.stall = true;
-                } else if ( !in_next_stage.every(x => isParallel(x.def.group, insn.def.group))) {
-                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}<br/>${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join("<br/>")}` };
-                    insn.stall = true;
-                } else if ( (current_stage != Stage.I) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc/2] = { stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`)).flat(Infinity).join("<br/>")}` };
-                    insn.stall = true;
-                } else if ( (current_stage != Stage.I) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc/2] = { stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`)).flat(Infinity).join("<br/>")}` };
-                    insn.stall = true;
+                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.text}]`).join("<br />")}` });
+                    seq.stall = true;
+                } else if ( !in_next_stage.every(x => isParallel(x.group, seq.group))) {
+                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.text}]`).join("<br/>")}` });
+                    seq.stall = true;
+                } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
+                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` });
+                    seq.stall = true;
+                } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
+                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` });
+                    seq.stall = true;
                 } else {
-                    insn.stall = false;
-                    insn.step++;
+                    seq.stall = false;
+                    seq.step++;
 
                     if (!next_stage) {
-                        toremove.push(insn);
+                        toremove.push(seq);
                     } else {
-                        last_column[insn.pc/2] = { text: StageNames[next_stage], explanation: `No Stall, Group: ${insn.def.group}` };
+                        last_column[seq.pc/2].push({ seq: seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}` });
                     }
                 }
             }
 
-            for (insn of toremove) {
-                in_flight = in_flight.filter(e => e !== insn)
+            for (seq of toremove) {
+                in_flight = in_flight.filter(e => e !== seq)
             }
 
-            const in_i_stage = in_flight.filter(insn => insn.def.pattern[0][insn.step] == Stage.I);
+            const in_i_stage = in_flight.filter(seq => seq[seq.step] == Stage.I);
 
             for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
                 let insn = insns[pc++];
-                insn.step = 0;
-                insn.program_order = program_order++;
-                insn.stall = false;
-                in_flight.push(insn);
-                insn.def.writes().forEach(reg => provides[reg].push(insn));
-                last_column[insn.pc/2] = {text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
+                let seq = deepcopy(insn.def.pattern[0]);
+                seq.step = 0;
+                seq.program_order = program_order++;
+                seq.stall = false;
+                seq.insn = insn;
+                seq.reads = insn.def.reads();
+                seq.writes = insn.def.writes();
+                seq.latency = insn.def.latency;
+                seq.group = insn.def.group;
+                seq.pc = insn.pc;
+
+                in_flight.push(seq);
+                insn.def.writes().forEach(reg => provides[reg].push(seq));
+                last_column[insn.pc/2].push({seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`});
             }
 
             for (let stage = 0; stage < Stage.Count; stage++) {
-                const in_stage_exec = in_flight.filter(x => x.def.pattern[0][x.step] == stage && !x.stall);
+                const in_stage_exec = in_flight.filter(seq => seq[seq.step] == stage && !seq.stall);
                 if (in_stage_exec.length == 2) {
-                    in_stage_exec.forEach(insn => {
-                        last_column[insn.pc/2].full = true;
-                        last_column[insn.pc/2].explanation += `<br/>Fully Utilized`;
+                    in_stage_exec.forEach(seq => {
+                        last_column[seq.insn.pc/2].forEach(x => {
+                            if (x.seq == seq) {
+                                x.full = true;
+                                x.explanation += `<br/>Fully Utilized`;
+                            }
+                        })
                     });
                 }
-            }   
+            }
 
             cycle++;
-            last_column.unshift({text: cycle, explanation: "Cycle Number"})
+            last_column.unshift([{text: cycle, explanation: "Cycle Number"}])
         }
 
-        generateTable(table);
+        const rowMajorTable = convertToRowMajor(table);
+        let flatTable = [];
+        rowMajorTable.forEach(row => {
+            // find max len in row
+            let maxHeight = row.reduce((max, cell) => Math.max(max, cell.length), 0);
+            for (let i = 0; i < maxHeight; i++) {
+                let newRow = [];
+                row.forEach(cell => {
+                    newRow.push(cell[i] || null);
+                });
+                flatTable.push(newRow);
+            }
+        });
+
+        generateTable(convertToRowMajor(flatTable));
 
     }
 
