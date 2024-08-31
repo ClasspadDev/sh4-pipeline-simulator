@@ -257,6 +257,13 @@ mov.l @r0, r0
         59: {asm: ["CMP/PL", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_sr },
         60: {asm: ["CMP/PZ", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_sr },
         61: {asm: ["CMP/STR", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
+        62: {asm: ["DIV0S", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
+        63: {asm: ["DIV0U"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
+        64: {asm: ["DIV1", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rnsr },
+
+        67: {asm: ["DT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
+
+        73: {asm: ["NEG", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
 
         75: {asm: ["SUB", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
 
