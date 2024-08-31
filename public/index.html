@@ -120,6 +120,8 @@
 <div class="desc">
     <h1>SH4 Pipeline Simulator</h1>
     <textarea class="src" oninput="do_sim()">
+    and.b 0, @(r0,gbr)
+    and.b 0, @(r0,gbr)
     MOV.L	 @R1,R1
     ADD	 R0,R1
     mov	r5,r1
@@ -139,7 +141,7 @@
     mov 0, r0 ; this is a test
     add r0, r0
     mov.l @r0, r0
-    </textarea>
+</textarea>
 </div>
 <div class="result">
 
@@ -149,9 +151,8 @@
 
     const Flags = {
         L: 16, // Lock
-        K: 32, // Kick
         KShift: 6,
-        Kick(x) { return (x << this.KShift) | this.K; }
+        Kick(x) { return (x << this.KShift); }
     }
 
     const Stage = {
@@ -238,26 +239,51 @@
 
         // AND.B, OR.B, XOR.B: 4 issue cycles
         6: [
-            [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S]
+            [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
             [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
             [Stage.D | Flags.L, Stage.SX | Flags.Kick(3), Stage.NA, Stage.S],
             [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S],
         ],
 
         // TAS.B: 5 issue cycles
-        6: [
-            [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S]
+        7: [
+            [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
             [Stage.D | Flags.L, Stage.EX | Flags.Kick(2), Stage.NA, Stage.S],
             [Stage.D | Flags.L, Stage.EX | Flags.Kick(3), Stage.NA, Stage.S],
             [Stage.D | Flags.L, Stage.EX | Flags.Kick(4), Stage.NA, Stage.S],
             [Stage.D | Flags.L, Stage.EX, Stage.MA, Stage.S],
         ],
 
+        8: [
+            [ Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX | Flags.Kick(2), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX | Flags.Kick(3), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX, Stage.NA, Stage.S ]
+        ],
+
+        9: [
+            [ Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX | Flags.Kick(2), Stage.NA, Stage.S ],
+            [ Stage.D, Stage.EX, Stage.NA, Stage.S ]
+        ],
+
         // Single-precision floating-point computation: 1 issue cycle
         // FCMP/EQ,FCMP/GT, FADD,FLOAT,FMAC,FMUL,FSUB,FTRC,FRCHG,FSCHG
         36: [
             [Stage.I, Stage.D, Stage.F1, Stage.F2, Stage.FS]
-        ]
+        ],
+
+        39: [
+            [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
+            [Stage.D, Stage.F1 | Flags.Kick(2), Stage.F2, Stage.FS],
+            [Stage.D, Stage.F1 | Flags.Kick(3), Stage.F2, Stage.FS],
+            [Stage.D, Stage.F1 | Flags.Kick(4), Stage.F2, Stage.FS],
+            [Stage.D, Stage.F1, Stage.F2 | Flags.Kick(5), Stage.FS],
+            [Stage.F1, Stage.F2, Stage.FS]
+
+        ],
 
     };
 
@@ -341,6 +367,10 @@
 
     function reads_r0gbr() {
         return ["R0", "GBR"];
+    }
+
+    function reads_fnm() {
+        return [...new Set([this.variant[index_of_part(this.asm, "FRm")], this.variant[index_of_part(this.asm, "FRn")]])];
     }
 
 
@@ -431,6 +461,9 @@
         179: {asm: ["FMOV.S", "FRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fnr0n, writes: writes_none },
         180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fn, writes: writes_fpul },
         181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fpul, writes: writes_fn },
+
+        183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: reads_fnm, writes: writes_fn },
+        // 183 FADD FRm,FRn FE 1 3/4 #36
     };
 
     // Registers
@@ -491,6 +524,7 @@
     function assemble(lines) {
         let rv = []
         let pc = 0;
+        let track = 0;
         for (line of lines.split("\n")) {
             let processed = line.split(/(;|\/\/)/)[0].replace("\t", " ").trim();
 
@@ -499,14 +533,47 @@
                 let def = instructions_rainbow[processed];
                 if (!def)
                     return null;
-                rv.push({pc: pc, text: processed, def: def, pipe: -1, step: -1});
+                rv.push({pc: pc, track: track, text: processed, def: def, pipe: -1, step: -1});
+                track += def.pattern.length;
                 pc += 2;
             }
         }
 
+        rv.tracks = track;
+
         return rv;
     }
 
+    function getSeq(insn, num, program_order) {
+        let seq = {};
+
+        seq.stage = function() {
+            return this.pattern[this.step] & Stage.Mask;
+        }
+        seq.kick = function() {
+            return this.pattern[this.step] >> Flags.KShift;
+        }
+        seq.next_stage = function() {
+            let rv = this.pattern[this.step + 1];
+            return rv ? rv & Stage.Mask : rv;
+        }
+        seq.is_last_stage = function() {
+            return this.step == this.pattern.length - 1;
+        }
+        seq.pattern = deepcopy(insn.def.pattern[num]);
+        seq.step = 0;
+        seq.program_order = program_order;
+        seq.stall = false;
+        seq.insn = insn;
+        seq.reads = insn.def.reads();
+        seq.writes = insn.def.writes();
+        seq.latency = insn.def.latency;
+        seq.group = insn.def.group;
+        seq.pc = insn.pc;
+        seq.track = insn.track + num;
+
+        return seq;
+    }
     function generateTable(tableArray) {
         // Determine the number of rows by finding the length of the first column
         const numRows = tableArray[0].length;
@@ -549,22 +616,6 @@
         document.querySelector(".result").appendChild(table);
     }
 
-    function convertToRowMajor(table) {
-        const numRows = table.length;
-        const numCols = table[0].length;
-
-        const rowMajorTable = [];
-
-        for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
-            const row = [];
-            for (let colIndex = 0; colIndex < numCols; colIndex++) {
-                row.push(table[rowIndex][colIndex]);
-            }
-            rowMajorTable.push(row);
-        }
-
-        return rowMajorTable;
-    }
 
     function do_sim() {
         let insns = assemble(document.querySelector(".src").value)
@@ -581,13 +632,16 @@
         let in_flight = []
 
         let table = [];
+        let initial_column = Array.from({length: insns.tracks}, (_, index) => null);
+        for (let i = 0; i < insns.length; i++) {
+            initial_column[insns[i].track] = {
+                text: `${insns[i].pc.toString(16).padStart(8,"0")} ${insns[i].text}`, 
+                explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` 
+            };
+        }
 
-        table.push(insns.map(x => [{
-            text: `${x.pc.toString(16).padStart(8,"0")} ${x.text}`, 
-            explanation:`group: ${x.def.group}, issue: ${x.def.issue}, latency: ${x.def.latency}${x.def.desc ? "<br/>" + x.def.desc : ""}` 
-        }]));
-
-        table[0].unshift([{text: "inst\\cycle", explanation: "Instruction vs Cycle Number"}]);
+        initial_column.unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
+        table.push(initial_column);
 
         let provides = { 
             "R0":  [],
@@ -637,7 +691,7 @@
             if (in_flight.length == 0 && pc == insns.length || cycle > 10000)
                 break;
             
-            table.push(Array.from({length: insns.length}, (_, index) => []));
+            table.push(Array.from({length: insns.tracks}, (_, index) => null));
             let last_column = table[table.length - 1];
 
             let toremove = [];
@@ -654,16 +708,16 @@
                 const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage);
 
                 if (in_next_stage.length == 2 ) {
-                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.text}]`).join("<br />")}` });
+                    last_column[seq.track] = { seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.text}]`).join("<br />")}` };
                     seq.stall = true;
                 } else if ( !in_next_stage.every(x => isParallel(x.group, seq.group))) {
-                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.text}]`).join("<br/>")}` });
+                    last_column[seq.track] = { seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.text}]`).join("<br/>")}` };
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
-                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` });
+                    last_column[seq.track] = { seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` };
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
-                    last_column[seq.pc/2].push({ seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` });
+                    last_column[seq.track] = { seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.text}`)).flat(Infinity).join("<br/>")}` };
                     seq.stall = true;
                 } else {
                     seq.stall = false;
@@ -672,8 +726,16 @@
                     if (!next_stage) {
                         toremove.push(seq);
                     } else {
-                        last_column[seq.pc/2].push({ seq: seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}` });
+                        last_column[seq.track] = { seq: seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}` };
                     }
+                }
+            }
+
+            for (seq of in_flight) {
+                if (!seq.stall && seq.kick()) {
+                    let kick_seq = getSeq(seq.insn, seq.kick(), seq.program_order);
+                    in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
+                    last_column[kick_seq.track] = {seq: kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}`};
                 }
             }
 
@@ -685,39 +747,18 @@
 
             for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
                 let insn = insns[pc++];
-                let seq = {};
-                seq.stage = function() {
-                    return this.pattern[this.step] & Stage.Mask;
-                }
-                seq.next_stage = function() {
-                    let rv = this.pattern[this.step + 1];
-                    return rv ? rv & Stage.Mask : rv;
-                }
-                seq.is_last_stage = function() {
-                    return this.step == this.pattern.length - 1;
-                }
-                seq.pattern = deepcopy(insn.def.pattern[0]);
-                seq.step = 0;
-                seq.program_order = program_order++;
-                seq.stall = false;
-                seq.insn = insn;
-                seq.reads = insn.def.reads();
-                seq.writes = insn.def.writes();
-                seq.latency = insn.def.latency;
-                seq.group = insn.def.group;
-                seq.pc = insn.pc;
-
+                let seq = getSeq(insn, 0, program_order++);
                 in_flight.push(seq);
                 insn.def.writes().forEach(reg => provides[reg].push(seq));
-                last_column[insn.pc/2].push({seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`});
+                last_column[seq.track] = {seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
             }
 
             for (let stage = 0; stage < Stage.Count; stage++) {
                 const in_stage_exec = in_flight.filter(seq => seq.stage() == stage && !seq.stall);
                 if (in_stage_exec.length == 2) {
                     in_stage_exec.forEach(seq => {
-                        last_column[seq.insn.pc/2].forEach(x => {
-                            if (x.seq == seq) {
+                        last_column.forEach(x => {
+                            if (x && x.seq == seq) {
                                 x.full = true;
                                 x.explanation += `<br/>Fully Utilized`;
                             }
@@ -727,24 +768,10 @@
             }
 
             cycle++;
-            last_column.unshift([{text: cycle, explanation: "Cycle Number"}])
+            last_column.unshift({text: cycle, explanation: "Cycle Number"})
         }
 
-        const rowMajorTable = convertToRowMajor(table);
-        let flatTable = [];
-        rowMajorTable.forEach(row => {
-            // find max len in row
-            let maxHeight = row.reduce((max, cell) => Math.max(max, cell.length), 0);
-            for (let i = 0; i < maxHeight; i++) {
-                let newRow = [];
-                row.forEach(cell => {
-                    newRow.push(cell[i] || null);
-                });
-                flatTable.push(newRow);
-            }
-        });
-
-        generateTable(convertToRowMajor(flatTable));
+        generateTable(table);
 
     }
 
