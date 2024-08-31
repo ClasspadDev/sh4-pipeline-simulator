@@ -202,6 +202,10 @@ mov.l @r0, r0
         return [];
     }
 
+    function writes_none() {
+        return [];
+    }
+
     function writes_r0() {
         return ["R0"];
     }
@@ -229,6 +233,31 @@ mov.l @r0, r0
     function writes_sr() {
         return ["SR"]
     }
+
+    function reads_r0m() {
+        return  [...new Set(["R0", this.variant[index_of_part(this.asm, "Rn")]])];
+    }
+
+    function reads_fn() {
+        return [this.variant[index_of_part(this.asm, "FRn")]];
+    }
+
+    function writes_fn() {
+        return [this.variant[index_of_part(this.asm, "FRn")]];
+    }
+
+    function writes_fpul() {
+        return ["FPUL"];
+    }
+
+    function reads_fpul() {
+        return ["FPUL"];
+    }
+
+    function reads_fnr0n() {
+        return [...new Set([this.variant[index_of_part(this.asm, "FRn")], "R0", this.variant[index_of_part(this.asm, "Rn")]])];
+    }
+
 
     const Instructions = {
          1: {asm: ["EXTS.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn},
@@ -296,6 +325,26 @@ mov.l @r0, r0
         105: {asm: ["SHLR2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
         106: {asm: ["SHLR8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
         107: {asm: ["SHLR16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+
+        119: {asm: ["NOP"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_none, writes: writes_none },
+
+        121: {asm: ["CLRS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
+        122: {asm: ["CLRT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
+        123: {asm: ["SETS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
+        124: {asm: ["SETT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
+
+
+        171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_none, writes: writes_fn },
+        172: {asm: ["FLDI1", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_none, writes: writes_fn },
+        173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fn, writes: writes_fn },
+        174: {asm: ["FMOV.S","@Rm","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_rm, writes: writes_fn },
+        // 175: {asm: ["FMOV.S", "@Rm+","FRn"], group: Group.LS, issue: 1, latency: 1/2, pattern: Patterns[2] },
+        176: {asm: ["FMOV.S", "@(R0,Rm)","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_r0m, writes: writes_fn },
+        177: {asm: ["FMOV.S", "FRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fn, writes: writes_none },
+        178: {asm: ["FMOV.S", "FRm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fn, writes: writes_rn },
+        179: {asm: ["FMOV.S", "FRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fnr0n, writes: writes_none },
+        180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fn, writes: writes_fpul },
+        181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fpul, writes: writes_fn },
     };
 
     // Registers
@@ -328,6 +377,12 @@ mov.l @r0, r0
                 return Array.from({ length: 256 }, (_, index) => `${index}`);
             case "@(disp,PC)":
                 return Array.from({ length: 256 }, (_, index) => `@(${index},PC)`);
+            case "@(R0,Rm)":
+            case "@(R0,Rn)":
+                return ["@(R0,R0)", "@(R0,R1)", "@(R0,R2)", "@(R0,R3)", "@(R0,R4)", "@(R0,R5)", "@(R0,R6)", "@(R0,R7)", "@(R0,R8)", "@(R0,R9)", "@(R0,R10)", "@(R0,R11)", "@(R0,R12)", "@(R0,R13)", "@(R0,R14)", "@(R0,R15)"];
+            case "FRm":
+            case "FRn":
+                return ["FR0", "FR1", "FR2", "FR3", "FR4", "FR5", "FR6", "FR7", "FR8", "FR9", "FR10", "FR11", "FR12", "FR13", "FR14", "FR15"];
             default:
                 return [str]
         }
@@ -444,7 +499,25 @@ mov.l @r0, r0
             "R14": [],
             "R15": [],
 
+            "FR0": [],
+            "FR1": [],
+            "FR2": [],
+            "FR3": [],
+            "FR4": [],
+            "FR5": [],
+            "FR6": [],
+            "FR7": [],
+            "FR8": [],
+            "FR9": [],
+            "FR10": [],
+            "FR11": [],
+            "FR12": [],
+            "FR13": [],
+            "FR14": [],
+            "FR15": [],
+
             "SR": [],
+            "FPUL": []
         };
 
         function data_provided_by(insn, provide_insns) {
