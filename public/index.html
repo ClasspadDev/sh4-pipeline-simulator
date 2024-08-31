@@ -59,6 +59,12 @@
         tr:nth-child(odd), tr:nth-child(odd) td {
             background-color: #f4f4f4;
         }
+
+        td.stall {
+            background-color: #804020 !important;
+            font-style: bold;
+            color: wheat;
+        }
     </style>
 </head>
 <body>
@@ -462,6 +468,9 @@
                 const cell = document.createElement('td');
                 cell.title = colData[rowIndex].explanation;
                 cell.innerHTML = colData[rowIndex].text; // Set the cell's text content
+                if (colData[rowIndex].stall) {
+                    cell.classList.add("stall");
+                }
 
                 // Append the cell to the row
                 row.appendChild(cell);
@@ -558,18 +567,18 @@
                 const in_next_stage = in_flight.filter(x => x != insn && x.def.pattern[0][x.step] == next_stage);
 
                 if (in_next_stage.length == 2 || !in_next_stage.every(x => isParallel(x.def.group, insn.def.group))) {
-                    last_column[insn.pc/2] = { text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}, ${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
+                    last_column[insn.pc/2] = { stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${insn.def.group}, ${in_next_stage.filter(x => !isParallel(x.def.group, insn.def.group)).map(x => `[${x.def.group}: ${x.text}]`).join(", ")}` };
                 } else if ( (current_stage != Stage.I) && insn.def.reads().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc/2] = { text: `|${current_stage_name}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
+                    last_column[insn.pc/2] = { stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency: ${insn.def.reads().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
                 } else if ( (current_stage != Stage.I) && insn.def.writes().some(reg => data_provided_by(insn, provides[reg]))) {
-                    last_column[insn.pc/2] = { text: `^${current_stage_name}^`, explanation: `Output Dependency: ${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
+                    last_column[insn.pc/2] = { stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency: ${insn.def.writes().map(reg => provides[reg].filter( provides_insn => provides_insn.program_order < insn.program_order).map(provides_insn => `${reg}: ${provides_insn.text}`).join(" | ")).join(", ")}` };
                 } else {
                     insn.step++;
 
                     if (!next_stage) {
                         toremove.push(insn);
                     } else {
-                        last_column[insn.pc/2] = {text: StageNames[next_stage], explanation: `No Stall, Group: ${insn.def.group}`};
+                        last_column[insn.pc/2] = { text: StageNames[next_stage], explanation: `No Stall, Group: ${insn.def.group}` };
                     }
                 }
             }
