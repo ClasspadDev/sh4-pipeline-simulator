@@ -35,6 +35,9 @@ body:not(.less-borders) td {
     border: 1px solid black;
 }
 
+table {
+    cursor: grab;
+}
 td[id] {
     cursor: help;
 }

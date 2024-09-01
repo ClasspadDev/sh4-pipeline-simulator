@@ -832,6 +832,29 @@ function do_sim() {
 
 do_sim();
 
+let lastX = 0;
+let lastY = 0;
+
+// Prevent text selection
+document.addEventListener('mousedown', function(event) {
+    if (!event.target.id && event.target.tagName === 'TD') {
+        event.preventDefault();
+    }
+});
+
+// Scroll on drag
+document.addEventListener('mousemove', function(event) {
+    if (!event.target.id && event.target.tagName === 'TD') {
+        if (event.buttons == 1) {
+            event.preventDefault();
+            window.scrollBy(0, lastY - event.clientY);
+            document.querySelector(".result").scrollLeft += lastX - event.clientX;
+        }
+    }
+    lastX = event.clientX;
+    lastY = event.clientY;
+});
+
 document.addEventListener("mouseover", function(e) {
     document.querySelectorAll(".marked").forEach(x => x.classList.remove("marked"));
     document.querySelectorAll(".current").forEach(x => x.classList.remove("current"));
