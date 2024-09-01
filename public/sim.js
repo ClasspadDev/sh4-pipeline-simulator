@@ -974,7 +974,7 @@ function do_sim() {
             last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
         }
 
-        last_column.unshift({text: cycle, explanation: "Cycle Number"})
+        last_column.unshift({text: cycle.toString(), explanation: "Cycle Number"})
         cycle++;
     }
 
