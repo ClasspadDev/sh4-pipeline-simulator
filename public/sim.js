@@ -843,7 +843,7 @@ document.addEventListener("mouseover", function(e) {
             document.getElementById(element).classList.add("marked");
         }
     }
-    if (document.getElementById("draw-crosshairs").checked) {
+    if (!document.getElementById("hide-crosshairs").checked) {
         if (e.target.getAttribute("data-current")) {
             let element = e.target.getAttribute("data-current");
             document.querySelectorAll(element).forEach(x => x.classList.add("current"));

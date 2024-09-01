@@ -31,11 +31,17 @@ tr {
     height: 2.3em;
 }
 
-td {
-    cursor: help;
-    min-width: 3em;
+body:not(.less-borders) td {
+    border: 1px solid black;
+}
 
-    border: 1px solid black; padding: 5px;
+td[id] {
+    cursor: help;
+}
+
+td {
+    min-width: 3em;    
+    padding: 5px;
 }
 
 td:not(:first-child) {
@@ -76,13 +82,17 @@ td.lock.lock {
     outline: 3px solid black;
     outline-offset: -3px;
 }
-td.full.full {
+body:not(.plain-format) td.full.full {
     background-color: #20A040;
     color: wheat;
 }
-td.stall.stall {
+body:not(.plain-format) td.stall.stall {
     background-color: #804020;
     color: wheat;
+}
+
+body.plain-format td.stall{
+    color: rgba(0, 0, 0, 0);
 }
 
 tr:nth-child(even), tr:nth-child(even) td {

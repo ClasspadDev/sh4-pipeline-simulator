@@ -38,8 +38,12 @@
         </div>
         <div>
             <span>Options:
-            <input type="checkbox" checked id="draw-crosshairs">
-            <label for="draw-crosshairs">Draw Crosshairs</label>
+            <input type="checkbox" id="hide-crosshairs">
+            <label for="hide-crosshairs">Hide Crosshairs</label>
+            <input type="checkbox" id="plain-format" onclick="event.target.checked?document.body.classList.add('plain-format') : document.body.classList.remove('plain-format');">
+            <label for="plain-format">Plain Format</label>
+            <input type="checkbox" id="less-borders" onclick="event.target.checked?document.body.classList.add('less-borders') : document.body.classList.remove('less-borders');">
+            <label for="less-borders">Less Borders</label>
             </span>
         </div>
         <div class="result">
