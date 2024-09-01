@@ -60,12 +60,18 @@
             border-right: 2px solid black;
         }
 
-        .current.start.start td {
-            border-top: 3px solid black;
+        td[data-cycle].current-cycle:not(.lock) {
+            border-left: 3px solid blue;
+            border-right: 3px solid blue;
+            padding-left: 3px;
+            padding-right: 3px;
+        }
+        .current.start.start td:not(.lock),  .current.start.start td:not([data-cycle]) {
+            border-top: 3px solid blue;
             padding-top: 3px;
         }
-        .current.end.end td {
-            border-bottom: 3px solid black;
+        .current.end.end td:not(.lock), .current.end.end td:not([data-cycle]) {
+            border-bottom: 3px solid blue;
             padding-bottom: 3px;
         }
         .marked.marked.marked {
@@ -178,6 +184,10 @@ add r0, r0
     mov.l @r0, r0
 </textarea>
 </div>
+<span>Options:
+<input type="checkbox" checked id="draw-crosshairs">
+<label for="draw-crosshairs">Draw Crosshairs</label>
+</span>
 <div class="result">
 
 </div>
@@ -645,7 +655,7 @@ add r0, r0
             }
             let first = true;
             // Iterate over each column to get the data for the current row
-            tableArray.forEach(colData => {
+            tableArray.forEach((colData, index) => {
                 // Create a new cell (td element)
                 const cell = document.createElement('td');
                 if (first) {
@@ -676,6 +686,9 @@ add r0, r0
                         }
                         if (colData[rowIndex].current) {
                             element.setAttribute("data-current", colData[rowIndex].current);
+                        }
+                        if (index > 0) {
+                            element.setAttribute("data-cycle", `${index - 1}`);
                         }
                     }
                 }
@@ -873,6 +886,7 @@ add r0, r0
                 in_flight.push(seq);
                 insn.def.writes().forEach(reg => provides[reg].push(seq));
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
+                last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
             }
 
             for (let stage = 0; stage < Stage.Count; stage++) {
@@ -902,6 +916,7 @@ add r0, r0
     document.addEventListener("mouseover", function(e) {
         document.querySelectorAll(".marked").forEach(x => x.classList.remove("marked"));
         document.querySelectorAll(".current").forEach(x => x.classList.remove("current"));
+        document.querySelectorAll(".current-cycle").forEach(x => x.classList.remove("current-cycle"));
 
         if (e.target.getAttribute("data-relevant")) {
             let relevant_elements = JSON.parse(e.target.getAttribute("data-relevant"));
@@ -909,9 +924,15 @@ add r0, r0
                 document.getElementById(element).classList.add("marked");
             }
         }
-        if (e.target.getAttribute("data-current")) {
-            let element = e.target.getAttribute("data-current");
-            document.querySelectorAll(element).forEach(x => x.classList.add("current"));
+        if (document.getElementById("draw-crosshairs").checked) {
+            if (e.target.getAttribute("data-current")) {
+                let element = e.target.getAttribute("data-current");
+                document.querySelectorAll(element).forEach(x => x.classList.add("current"));
+            }
+            if (e.target.getAttribute("data-cycle")) {
+                let element = e.target.getAttribute("data-cycle");
+                document.querySelectorAll(`[data-cycle="${element}"]`).forEach(x => x.classList.add("current-cycle"));
+            }
         }
     });
 </script>
