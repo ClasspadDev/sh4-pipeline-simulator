@@ -976,6 +976,21 @@ add r0, r0
                 last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
             }
 
+
+            for (let stage = 0; stage < Stage.Count; stage++) {
+                const in_stage_exec = in_flight.filter(seq => seq.stage() == stage && !seq.stall);
+                if (in_stage_exec.length == 2) {
+                    in_stage_exec.forEach(seq => {
+                        last_column.forEach(x => {
+                            if (x && x.seq == seq) {
+                                x.full = true;
+                                x.explanation += `<br/>Fully Utilized`;
+                            }
+                        })
+                    });
+                }
+            }
+            
             for (seq of toremove) {
                 in_flight = in_flight.filter(e => e !== seq);
 
@@ -1002,20 +1017,6 @@ add r0, r0
                 insn.def.writes().forEach(reg => provides[reg].push(seq));
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
                 last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
-            }
-
-            for (let stage = 0; stage < Stage.Count; stage++) {
-                const in_stage_exec = in_flight.filter(seq => seq.stage() == stage && !seq.stall);
-                if (in_stage_exec.length == 2) {
-                    in_stage_exec.forEach(seq => {
-                        last_column.forEach(x => {
-                            if (x && x.seq == seq) {
-                                x.full = true;
-                                x.explanation += `<br/>Fully Utilized`;
-                            }
-                        })
-                    });
-                }
             }
 
             last_column.unshift({text: cycle, explanation: "Cycle Number"})
