@@ -111,6 +111,9 @@
         /* Tooltip container */
         .tooltip {
             position: relative;
+        }
+
+        td.tooltip {
             display: inline-block;
             height: 100%;
             width: 100%;
@@ -148,50 +151,59 @@
         }
 
         /* Show the tooltip text when hovering over the tooltip container */
-        .tooltip:hover .tooltiptext {
+        .tooltip:hover, .tooltip.copied .tooltiptext {
             visibility: visible;
             opacity: 0.9;
         }
-        .tooltiptext:hover {
+        .tooltip:not(.copied) .tooltiptext:hover {
             display: none;
+        }
+
+        .src {
+            margin-top: 1em;
+            margin-bottom: 1em;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
 </head>
 <body>
-<div class="desc">
-    <h1>SH4 Pipeline Simulator</h1>
-    <textarea class="src" oninput="do_sim()">
-    and.b #0, @(r0,gbr)
-and.b #0, @(r0,gbr)
-MOV.L	 @R1,R1
-ADD	 R0,R1
-mov	r5,r1
-add	r1,r1
-add	r1,r5
-mov	r5,r0
-shll2	r0
-shll2	r0
-sub	r5,r0
-add r0, r0
-MOV R0, R0
-mov #0, r0 ; this is a test
-add r0, r0
-mov.l @r0, r0
-add r0, r0
-MOV R0, R0
-mov #0, r0 ; this is a test
-add r0, r0
-    mov.l @r0, r0
-</textarea>
-</div>
-<span>Options:
-<input type="checkbox" checked id="draw-crosshairs">
-<label for="draw-crosshairs">Draw Crosshairs</label>
-</span>
-<div class="result">
+    <div class="desc">
+        <h1>SH4 Pipeline Simulator</h1>
+        <div><span>Copy Link to Source <button onclick="copy_url(event);" class="tooltip"><span class="tooltiptext">Copied!</span>🔗</button></span></div>
 
-</div>
+            <textarea class="src" oninput="do_sim();">
+            and.b #0, @(r0,gbr)
+            and.b #0, @(r0,gbr)
+            MOV.L	 @R1,R1
+            ADD	 R0,R1
+            mov	r5,r1
+            add	r1,r1
+            add	r1,r5
+            mov	r5,r0
+            shll2	r0
+            shll2	r0
+            sub	r5,r0
+            add r0, r0
+            MOV R0, R0
+            mov #0, r0 ; this is a test
+            add r0, r0
+            mov.l @r0, r0
+            add r0, r0
+            MOV R0, R0
+            mov #0, r0 ; this is a test
+            add r0, r0
+            mov.l @r0, r0
+            </textarea>
+        </div>
+        <div>
+            <span>Options:
+            <input type="checkbox" checked id="draw-crosshairs">
+            <label for="draw-crosshairs">Draw Crosshairs</label>
+            </span>
+        </div>
+        <div class="result">
+
+        </div>
 
 <script>
 
@@ -990,7 +1002,7 @@ add r0, r0
                     });
                 }
             }
-            
+
             for (seq of toremove) {
                 in_flight = in_flight.filter(e => e !== seq);
 
@@ -1051,6 +1063,14 @@ add r0, r0
             }
         }
     });
+
+    function copy_url(e) {
+        navigator.clipboard.writeText(window.location.href);
+        e.target.classList.add("copied");
+        setTimeout(() => {
+            e.target.classList.remove("copied");
+        }, 2000);
+    }
 </script>
 
 </body>
