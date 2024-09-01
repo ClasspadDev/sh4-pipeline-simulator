@@ -161,8 +161,8 @@
 <div class="desc">
     <h1>SH4 Pipeline Simulator</h1>
     <textarea class="src" oninput="do_sim()">
-    and.b 0, @(r0,gbr)
-and.b 0, @(r0,gbr)
+    and.b #0, @(r0,gbr)
+and.b #0, @(r0,gbr)
 MOV.L	 @R1,R1
 ADD	 R0,R1
 mov	r5,r1
@@ -174,12 +174,12 @@ shll2	r0
 sub	r5,r0
 add r0, r0
 MOV R0, R0
-mov 0, r0 ; this is a test
+mov #0, r0 ; this is a test
 add r0, r0
 mov.l @r0, r0
 add r0, r0
 MOV R0, R0
-mov 0, r0 ; this is a test
+mov #0, r0 ; this is a test
 add r0, r0
     mov.l @r0, r0
 </textarea>
@@ -539,6 +539,18 @@ add r0, r0
                 return [str]
         }
     }
+
+    function processInsn(no_comments) {
+        return no_comments
+            .replace(/\s+/g, " ")
+            .replace(/\s*,\s*/g, ",")
+            .replace(/@\s*/g, "@")
+            .replace(/\s*\(\s*/g, "(")
+            .replace(/\s*\)\s*/g, ")")
+            .toLowerCase()
+            .trim();
+    }
+
     for (const index of Object.keys(Instructions)) {
         const insn = Instructions[index];
 
@@ -550,7 +562,7 @@ add r0, r0
             insn_rain.reads = insn.reads;
             insn_rain.writes = insn.writes;
             insn_rain.variant = insn_variant;
-            instructions_rainbow[((insn_variant[0] + " " + insn_variant.slice(1).join(",")).toLowerCase()).trim()] = insn_rain;
+            instructions_rainbow[processInsn((insn_variant[0] + " " + insn_variant.slice(1).join(",")))] = insn_rain;
         }
     }
 
@@ -559,14 +571,10 @@ add r0, r0
         let pc = 0;
         let track = 0;
         for (line of lines.split("\n")) {
-            let processed = line.split(/(;|!|\/\/)/)[0].replace("\t", " ").trim();
+            let no_comments = line.split(/(;|!|\/\/)/)[0].replace("\t", " ").trim();
 
-            if (processed.length) {
-                processed = processed.replace(/\s+/g, " ")
-                                    .replace(/\s*,\s*/g, ",")
-                                    .replace(/@\s*/g, "@")
-                                    .replace(/\s*\(\s*/g, "(")
-                                    .replace(/\s*\)\s*/g, ")").toLowerCase();
+            if (no_comments.length) {
+                processed = processInsn(no_comments);
                 let def = instructions_rainbow[processed];
                 if (!def) {
                     console.error(`Unknown instruction: ${processed} from ${line}`);
