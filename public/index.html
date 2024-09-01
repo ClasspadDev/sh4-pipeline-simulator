@@ -10,9 +10,11 @@
 <body>
     <div class="desc">
         <h1>SH4 Pipeline Simulator</h1>
-        <div><span>Copy Link to Source <button onclick="copy_url(event);" class="tooltip"><span class="tooltiptext">Copied!</span>🔗</button></span></div>
+        <div class="copy-link">
+            <span>Copy Link to Source <button onclick="copy_url(event);" class="tooltip"><span class="tooltiptext">Copied!</span>🔗</button></span>
+        </div>
 
-            <textarea class="src" oninput="do_sim();">
+        <textarea class="src" oninput="do_sim();">
             and.b #0, @(r0,gbr)
             and.b #0, @(r0,gbr)
             MOV.L	 @R1,R1
@@ -34,21 +36,23 @@
             mov #0, r0 ; this is a test
             add r0, r0
             mov.l @r0, r0
-            </textarea>
-        </div>
-        <div>
-            <span>Options:
-            <input type="checkbox" id="hide-crosshairs">
-            <label for="hide-crosshairs">Hide Crosshairs</label>
-            <input type="checkbox" id="plain-format" onclick="event.target.checked?document.body.classList.add('plain-format') : document.body.classList.remove('plain-format');">
-            <label for="plain-format">Plain Format</label>
-            <input type="checkbox" id="less-borders" onclick="event.target.checked?document.body.classList.add('less-borders') : document.body.classList.remove('less-borders');">
-            <label for="less-borders">Less Borders</label>
-            </span>
-        </div>
-        <div class="result">
+        </textarea>
+    </div>
+    <div class="options">
+        <span>Options:
+        <input type="checkbox" id="hide-crosshairs">
+        <label for="hide-crosshairs">Hide Crosshairs</label>
+        <input type="checkbox" id="plain-format" onclick="event.target.checked?document.body.classList.add('plain-format') : document.body.classList.remove('plain-format');">
+        <label for="plain-format">Plain Format</label>
+        <input type="checkbox" id="less-borders" onclick="event.target.checked?document.body.classList.add('less-borders') : document.body.classList.remove('less-borders');">
+        <label for="less-borders">Less Borders</label>
+        <!-- <input type="checkbox" id="paginate-table" onclick="do_sim();">
+        <label for="paginate-table">Paginate Table</label> -->
+        </span>
+    </div>
+    <div class="result">
 
-        </div>
+    </div>
     <script src="sim.js"></script>
 </body>
 </html>

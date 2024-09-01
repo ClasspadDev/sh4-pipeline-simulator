@@ -1,8 +1,13 @@
 body {
     font-family: monospace;
-    background-color: #f4f4f4;
-    margin: 2em;
     padding: 0;
+}
+
+@media screen {
+    body {
+        background-color: #f4f4f4;
+        margin: 2em;
+    }
 }
 
 .src {
@@ -14,10 +19,24 @@ body.error {
     background-color: red;
 }
 
+@media print {
+    body {
+        margin: 0;
+    }
+    .src, .options, .copy-link {
+        display: none;
+    }
+}
+
+@media screen {
+    .result {
+        overflow-x: scroll;
+        overflow-y: hidden;
+    }
+}
+
 .result {
     white-space: nowrap;
-    overflow-x:scroll;
-    overflow-y: hidden;
 }
 
 table {
