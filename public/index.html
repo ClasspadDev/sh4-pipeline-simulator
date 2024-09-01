@@ -806,14 +806,10 @@ add r0, r0
         document.querySelector(".result").appendChild(table);
     }
 
-    if (window.location.href) {
-        let src = window.location.href.split("#");
-        if (src.length == 2) {
-            document.querySelector(".src").value = atob(src[1]);
-        } else if (src.length == 3) {
-            let compressedData = Uint8Array.from(atob(src[2]), c => c.charCodeAt(0));
-            document.querySelector(".src").value = new TextDecoder().decode(pako.inflate(compressedData));
-        }
+    let urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has("source")) {
+        let compressedData = Uint8Array.from(atob(urlParams.get("source")), c => c.charCodeAt(0));
+        document.querySelector(".src").value = new TextDecoder().decode(pako.inflate(compressedData));        
     }
 
     function do_sim() {
@@ -823,7 +819,9 @@ add r0, r0
             return;
         }
         let data = pako.deflate(new TextEncoder().encode(document.querySelector(".src").value));
-        window.location.href = `##${btoa(data)}`;
+        let currentUrl = new URL(window.location.href);
+        let binaryString = Array.from(data).map(byte => String.fromCharCode(byte)).join('');
+        window.history.replaceState({}, '', `${currentUrl.pathname}?source=${encodeURIComponent(btoa(binaryString))}`);
 
         document.body.classList.remove("error")
 
