@@ -803,26 +803,26 @@ add r0, r0
 
                 if (in_next_stage.length == 2 ) {
                     relevant_seqs = in_next_stage;
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br />")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${next_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br />")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else if (stage_lock[next_stage] && stage_lock[next_stage] != seq) {
                     let relevant_seqs = [stage_lock[next_stage]];
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `~${current_stage_name}~`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `~${next_stage_name}~`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                 } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => isParallel(x.group, seq.group))) {
                     let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${next_stage_name}*`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
                     let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `|${next_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
                     let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `^${next_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else {
