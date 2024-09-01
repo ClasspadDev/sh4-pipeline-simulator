@@ -23,13 +23,19 @@
 
         .result {
             white-space: nowrap;
-            overflow:scroll;
+            overflow-x:scroll;
+            overflow-y: hidden;
         }
 
         table {
             border-collapse: separate;
             border-spacing: 0;
             margin-top: 4em;
+            margin-bottom: 4em;
+        }
+
+        tr {
+            height: 2.3em;
         }
 
         td {
@@ -52,9 +58,16 @@
             position: sticky;
             left: 0px;
             border-right: 2px solid black;
-            z-index: 1;
         }
 
+        .current.start.start td {
+            border-top: 3px solid black;
+            padding-top: 3px;
+        }
+        .current.end.end td {
+            border-bottom: 3px solid black;
+            padding-bottom: 3px;
+        }
         .marked.marked.marked {
             background-color: #3a443c;
             color: wheat;
@@ -74,10 +87,19 @@
         }
 
         tr:nth-child(even), tr:nth-child(even) td {
-            background-color: #e2e2e2;
+            background-color: #d2d2d2;
         }
         tr:nth-child(odd), tr:nth-child(odd) td {
             background-color: #f4f4f4;
+        }
+
+        tr:nth-child(even) td.current {
+            background-color: #c2c2c2;
+            font-weight: bold;
+        }
+        tr:nth-child(odd) td.current {
+            background-color: #e4e4e4;
+            font-weight: bold;
         }
 
         /* Tooltip container */
@@ -611,16 +633,28 @@ add r0, r0
         for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
             // Create a new row
             const row = document.createElement('tr');
-
+            row.classList.add(`row-insn-${tableArray[0][rowIndex].pc}`);
+            if (rowIndex == 0 || tableArray[0][rowIndex-1].pc != tableArray[0][rowIndex].pc) {
+                row.classList.add("start");
+            }
+            if (rowIndex + 1 == numRows || tableArray[0][rowIndex+1].pc != tableArray[0][rowIndex].pc) {
+                row.classList.add("end");
+            }
+            let first = true;
             // Iterate over each column to get the data for the current row
             tableArray.forEach(colData => {
                 // Create a new cell (td element)
                 const cell = document.createElement('td');
+                if (first) {
+                    cell.style = `z-index: ${numRows - rowIndex + 1};`;
+                    first = false;
+                }
                 if (colData[rowIndex]) {
                     if (colData[rowIndex].explanation) {
-                        cell.innerHTML = `<span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}`;
+                        cell.innerHTML = `<span class="tooltip"><span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}</span>`;
+                    } else {
+                        cell.innerHTML = `<span class="tooltip"></span>`;
                     }
-                    cell.classList.add("tooltip");
                     if (colData[rowIndex].id) {
                         cell.id = colData[rowIndex].id;
                     }
@@ -633,8 +667,13 @@ add r0, r0
                     if (colData[rowIndex].lock) {
                         cell.classList.add("lock");
                     }
-                    if (colData[rowIndex].relevant) {
-                        cell.setAttribute("data-relevant", colData[rowIndex].relevant);
+                    for (const element of [cell, cell.children[0]]) {
+                        if (colData[rowIndex].relevant) {
+                            element.setAttribute("data-relevant", colData[rowIndex].relevant);
+                        }
+                        if (colData[rowIndex].current) {
+                            element.setAttribute("data-current", colData[rowIndex].current);
+                        }
                     }
                 }
 
@@ -674,6 +713,14 @@ add r0, r0
                 text: insns[i].format(), 
                 explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` 
             };
+
+            for (let j = 0; j < insns[i].def.pattern.length; j++) {
+                if (!initial_column[insns[i].track + j]) {
+                    initial_column[insns[i].track + j] = {};
+                }
+                initial_column[insns[i].track + j].pc = insns[i].pc;
+                initial_column[insns[i].track + j].current = `.row-insn-${insns[i].pc}`
+            }
         }
 
         initial_column.unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
@@ -728,8 +775,14 @@ add r0, r0
             if (in_flight.length == 0 && pc == insns.length || cycle > 10000)
                 break;
             
-            table.push(Array.from({length: insns.tracks}, (_, index) => null));
-            let last_column = table[table.length - 1];
+            table.push(Array.from({length: insns.tracks}, (_, index) => ({})));
+            const last_column = table[table.length - 1];
+
+            for (let i = 0; i < insns.length; i++) {
+                for (let j = 0; j < insns[i].def.pattern.length; j++) {
+                    last_column[insns[i].track + j].current = `.row-insn-${insns[i].pc}`;
+                }
+            }
 
             let toremove = [];
             for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
@@ -788,11 +841,14 @@ add r0, r0
                         }
                         in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
                         last_column[kick_seq.track] = {id: `step-${kick_seq.track}-${cycle}`, seq: kick_seq, lock: stage_lock[kick_seq.stage()], text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}${stage_lock[kick_seq.stage()]?`<br/>Stage Lock: ${StageNames[kick_seq.stage()]}`: ""}`};
+                        last_column[kick_seq.track].current = `.row-insn-${kick_seq.insn.pc}`;
                         seq_index++;
                     }
                     
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()], text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}` };
                 }
+
+                last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
             }
 
             for (seq of in_flight) {
@@ -842,12 +898,17 @@ add r0, r0
 
     document.addEventListener("mouseover", function(e) {
         document.querySelectorAll(".marked").forEach(x => x.classList.remove("marked"));
+        document.querySelectorAll(".current").forEach(x => x.classList.remove("current"));
 
         if (e.target.getAttribute("data-relevant")) {
             let relevant_elements = JSON.parse(e.target.getAttribute("data-relevant"));
             for (element of relevant_elements) {
                 document.getElementById(element).classList.add("marked");
             }
+        }
+        if (e.target.getAttribute("data-current")) {
+            let element = e.target.getAttribute("data-current");
+            document.querySelectorAll(element).forEach(x => x.classList.add("current"));
         }
     });
 </script>
