@@ -23,8 +23,12 @@ body.error {
     body {
         margin: 0;
     }
-    .src, .options, .copy-link {
+    .src, .options, .copy-link, .print-hidden {
         display: none;
+    }
+    table {
+        width: 100%;
+        page-break-inside: avoid;
     }
 }
 
@@ -32,6 +36,17 @@ body.error {
     .result {
         overflow-x: scroll;
         overflow-y: hidden;
+        display: flex;
+    }
+    .screen-hidden {
+        display: none;
+    }
+    .screen-hidden-text {
+        color: transparent
+    }
+    table {
+        margin-top: 4em;
+        margin-bottom: 4em;
     }
 }
 
@@ -42,8 +57,6 @@ body.error {
 table {
     border-collapse: separate;
     border-spacing: 0;
-    margin-top: 4em;
-    margin-bottom: 4em;
 }
 
 tr {
@@ -75,29 +88,37 @@ tr:first-child td:first-child {
     text-align: center;
 }
 
+@media screen and (min-width: 600px) {
+    table:first-child tr td:first-child {
+        position: sticky;
+    }   
+}
+
 tr td:first-child {
-    position: sticky;
     left: 0px;
     border-right: 2px solid black;
 }
 
-td[data-cycle].current-cycle:not(.lock) {
-    border-left: 3px solid blue;
-    border-right: 3px solid blue;
-    padding-left: 3px;
-    padding-right: 3px;
-}
-.current.start.start td:not(.lock),  .current.start.start td:not([data-cycle]) {
-    border-top: 3px solid blue;
-    padding-top: 3px;
-}
-.current.end.end td:not(.lock), .current.end.end td:not([data-cycle]) {
-    border-bottom: 3px solid blue;
-    padding-bottom: 3px;
-}
-.marked.marked.marked {
-    background-color: #3a443c;
-    color: wheat;
+@media screen {
+    td[data-cycle].current-cycle:not(.lock) {
+        border-left: 3px solid blue;
+        border-right: 3px solid blue;
+        padding-left: 3px;
+        padding-right: 3px;
+    }
+    .current.start.start td:not(.lock),  .current.start.start td:not([data-cycle]) {
+        border-top: 3px solid blue;
+        padding-top: 3px;
+    }
+    .current.end.end td:not(.lock), .current.end.end td:not([data-cycle]) {
+        border-bottom: 3px solid blue;
+        padding-bottom: 3px;
+    }
+
+    .marked.marked.marked {
+        background-color: #3a443c;
+        color: wheat;
+    }
 }
 
 td.lock.lock {
@@ -114,7 +135,7 @@ body:not(.plain-format) td.stall.stall {
 }
 
 body.plain-format td.stall{
-    color: rgba(0, 0, 0, 0);
+    color: transparent;
 }
 
 tr:nth-child(even), tr:nth-child(even) td {
@@ -175,10 +196,12 @@ td.tooltip {
     border-color: transparent transparent #555 transparent; /* Arrow color */
 }
 
-/* Show the tooltip text when hovering over the tooltip container */
-.tooltip:hover, .tooltip.copied .tooltiptext {
-    visibility: visible;
-    opacity: 0.9;
+@media screen {
+    /* Show the tooltip text when hovering over the tooltip container */
+    .tooltip:hover .tooltiptext, .tooltip.copied .tooltiptext {
+        visibility: visible;
+        opacity: 0.9;
+    }
 }
 .tooltip:not(.copied) .tooltiptext:hover {
     display: none;

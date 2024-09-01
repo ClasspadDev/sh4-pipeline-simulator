@@ -538,76 +538,158 @@ function getSeq(insn, num, program_order) {
 
     return seq;
 }
+
 function generateTable(tableArray) {
+    document.querySelector(".result").innerHTML = "";
+
     // Determine the number of rows by finding the length of the first column
     const numRows = tableArray[0].length;
 
-    // Create a table element
-    const table = document.createElement('table');
-    
-    // Iterate over each row index
-    for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
-        // Create a new row
-        const row = document.createElement('tr');
-        row.classList.add(`row-insn-${tableArray[0][rowIndex].pc}`);
-        if (rowIndex == 0 || tableArray[0][rowIndex-1].pc != tableArray[0][rowIndex].pc) {
-            row.classList.add("start");
-        }
-        if (rowIndex + 1 == numRows || tableArray[0][rowIndex+1].pc != tableArray[0][rowIndex].pc) {
-            row.classList.add("end");
-        }
-        let first = true;
-        // Iterate over each column to get the data for the current row
-        tableArray.forEach((colData, index) => {
-            // Create a new cell (td element)
-            const cell = document.createElement('td');
+    // Calculate the number of tables needed
+    const columnsPerTable = 10;
+    const numTables = Math.ceil((tableArray.length - 1) / columnsPerTable);
+
+    // Find the maximum length of the text in column 0
+    const maxTextLength = tableArray[0].reduce((maxLength, cell) => {
+        return Math.max(maxLength, cell.text ? cell.text.length : 0);
+    }, 0);
+
+    for (let tableIndex = 0; tableIndex < numTables; tableIndex++) {
+        // Create a table element for each set of columns
+        const table = document.createElement('table');
+
+        // Iterate over each row index
+        for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+            // Create a new row
+            const row = document.createElement('tr');
+            row.classList.add(`row-insn-${tableArray[0][rowIndex].pc}`);
+            if (rowIndex == 0 || tableArray[0][rowIndex - 1].pc != tableArray[0][rowIndex].pc) {
+                row.classList.add("start");
+            }
+            if (rowIndex + 1 == numRows || tableArray[0][rowIndex + 1].pc != tableArray[0][rowIndex].pc) {
+                row.classList.add("end");
+            }
+            let first = true;
+
+            // Always insert column 0 first with the and screen-hidden class for tableIndex != 0
+            const colData0 = tableArray[0];
+            const cell0 = document.createElement('td');
+            if (tableIndex != 0) {
+                cell0.classList.add("screen-hidden"); // Add screen-hidden class to column 0
+            }
             if (first) {
-                cell.style = `z-index: ${numRows - rowIndex + 1};`;
+                cell0.style = `z-index: ${numRows - rowIndex + 1};`;
                 first = false;
             }
-            if (colData[rowIndex]) {
-                if (colData[rowIndex].explanation) {
-                    cell.innerHTML = `<span class="tooltip"><span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}</span>`;
+            if (colData0[rowIndex]) {
+                // Pad the text in column 0 to the maximum length
+                const paddedText = (colData0[rowIndex].text?colData0[rowIndex].text:"").padEnd(maxTextLength, ' ').replace(/ /g, "&nbsp;");
+                if (colData0[rowIndex].explanation) {
+                    cell0.innerHTML = `<span class="tooltip"><span class="tooltiptext">${colData0[rowIndex].explanation}</span>${paddedText}</span>`;
                 } else {
-                    cell.innerHTML = `<span class="tooltip"></span>`;
+                    cell0.innerHTML = `<span class="tooltip"></span>${paddedText}`;
                 }
-                if (colData[rowIndex].id) {
-                    cell.id = colData[rowIndex].id;
+                if (colData0[rowIndex].id) {
+                    cell0.id = colData0[rowIndex].id;
                 }
-                if (colData[rowIndex].stall) {
-                    cell.classList.add("stall");
+                if (colData0[rowIndex].stall) {
+                    cell0.classList.add("stall");
                 }
-                if (colData[rowIndex].full) {
-                    cell.classList.add("full");
+                if (colData0[rowIndex].full) {
+                    cell0.classList.add("full");
                 }
-                if (colData[rowIndex].lock) {
-                    cell.classList.add("lock");
+                if (colData0[rowIndex].lock) {
+                    cell0.classList.add("lock");
                 }
-                for (const element of [cell, cell.children[0]]) {
-                    if (colData[rowIndex].relevant) {
-                        element.setAttribute("data-relevant", colData[rowIndex].relevant);
+                if (colData0[rowIndex].screen_hidden) {
+                    cell0.classList.add("screen-hidden-text");
+                }
+                for (const element of [cell0, cell0.children[0]]) {
+                    if (colData0[rowIndex].relevant) {
+                        element.setAttribute("data-relevant", colData0[rowIndex].relevant);
                     }
-                    if (colData[rowIndex].current) {
-                        element.setAttribute("data-current", colData[rowIndex].current);
+                    if (colData0[rowIndex].current) {
+                        element.setAttribute("data-current", colData0[rowIndex].current);
                     }
-                    if (index > 0) {
-                        element.setAttribute("data-cycle", `${index - 1}`);
-                    }
+                    element.setAttribute("data-cycle", `0`);
                 }
             }
+            row.appendChild(cell0);
 
-            // Append the cell to the row
-            row.appendChild(cell);
-        });
+            // Flag to check if all other columns are empty
+            let onlyColumn0HasText = true;
 
-        // Append the row to the table
-        table.appendChild(row);
+            // Iterate over each column within the current chunk, starting from column 1
+            let columnCount = 1; // Keep track of the number of columns
+            for (let colIndex = tableIndex * columnsPerTable + 1; colIndex < Math.min((tableIndex + 1) * columnsPerTable + 1, tableArray.length); colIndex++) {
+                const colData = tableArray[colIndex];
+                
+                // Create a new cell (td element)
+                const cell = document.createElement('td');
+                if (colData[rowIndex]) {
+                    if (colData[rowIndex].explanation) {
+                        cell.innerHTML = `<span class="tooltip"><span class="tooltiptext">${colData[rowIndex].explanation}</span>${colData[rowIndex].text}</span>`;
+                        // If this column has text, set the flag to false
+                        onlyColumn0HasText = false;
+                    } else {
+                        cell.innerHTML = `<span class="tooltip"></span>`;
+                    }
+                    if (colData[rowIndex].id) {
+                        cell.id = colData[rowIndex].id;
+                    }
+                    if (colData[rowIndex].stall) {
+                        cell.classList.add("stall");
+                    }
+                    if (colData[rowIndex].full) {
+                        cell.classList.add("full");
+                    }
+                    if (colData[rowIndex].lock) {
+                        cell.classList.add("lock");
+                    }
+                    if (colData[rowIndex].screen_hidden) {
+                        cell.classList.add("screen-hidden");
+                    }
+                    if (colData[rowIndex].screen_hidden) {
+                        cell.classList.add("screen-hidden-text");
+                    }
+                    for (const element of [cell, cell.children[0]]) {
+                        if (colData[rowIndex].relevant) {
+                            element.setAttribute("data-relevant", colData[rowIndex].relevant);
+                        }
+                        if (colData[rowIndex].current) {
+                            element.setAttribute("data-current", colData[rowIndex].current);
+                        }
+                        element.setAttribute("data-cycle", `${colIndex}`);
+                    }
+                }
+
+                // Append the cell to the row
+                row.appendChild(cell);
+                columnCount++; // Increment the column count
+            }
+
+            // If the row has less than 10 columns, pad with empty cells
+            while (columnCount <= columnsPerTable) {
+                const emptyCell = document.createElement('td');
+                emptyCell.classList.add("screen-hidden"); // Add screen-hidden class to padded columns
+                row.appendChild(emptyCell);
+                columnCount++;
+            }
+
+            // If only column 0 has text, add the .print-hidden class to the row
+            if (onlyColumn0HasText) {
+                row.classList.add("print-hidden");
+            }
+
+            // Append the row to the table
+            table.appendChild(row);
+        }
+
+        // Append the table to the result container
+        document.querySelector(".result").appendChild(table);
     }
-
-    // Append the table to the body (or any other container element)
-    document.querySelector(".result").innerHTML = ""
-    document.querySelector(".result").appendChild(table);
 }
+
 
 let urlParams = new URLSearchParams(window.location.search);
 if (urlParams.has("source")) {
@@ -642,12 +724,14 @@ function do_sim() {
             explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` 
         };
 
-        for (let j = 0; j < insns[i].def.pattern.length; j++) {
+        for (let j = 1; j < insns[i].def.pattern.length; j++) {
             if (!initial_column[insns[i].track + j]) {
-                initial_column[insns[i].track + j] = {};
+                initial_column[insns[i].track + j] = deepcopy(initial_column[insns[i].track]);
             }
             initial_column[insns[i].track + j].pc = insns[i].pc;
             initial_column[insns[i].track + j].current = `.row-insn-${insns[i].pc}`
+
+            initial_column[insns[i].track + j].screen_hidden = true;
         }
     }
 
