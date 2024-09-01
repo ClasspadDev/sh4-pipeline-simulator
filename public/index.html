@@ -205,14 +205,15 @@ add r0, r0
         D: 1,
         EX: 3,
         SX: 4,
-        F1: 5,
-        F2: 6,
-        F3: 7,
-        NA: 8,
-        MA: 9,
-        S: 10,
-        FS: 11,
-        Count: 12,
+        F0: 5,
+        F1: 6,
+        F2: 7,
+        F3: 8,
+        NA: 9,
+        MA: 10,
+        S: 11,
+        FS: 12,
+        Count: 13,
         Mask: 15
     };
 
@@ -221,6 +222,7 @@ add r0, r0
     StageNames[Stage.D] = "D";
     StageNames[Stage.EX] = "EX";
     StageNames[Stage.SX] = "SX";
+    StageNames[Stage.F0] = "F0";
     StageNames[Stage.F1] = "F1";
     StageNames[Stage.F2] = "F2";
     StageNames[Stage.F3] = "F3";
@@ -271,15 +273,15 @@ add r0, r0
 
         // JMP, RTS, BRAF: 2 issue cycles
         4: [
-            [Stage.I, Stage.D, Stage.EX, Stage.NA, Stage.S]
-            [null   , null   , Stage.DL, Stage.EX, Stage.NA, Stage.S]
+            [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S],
+            [Stage.DL, Stage.EX, Stage.NA, Stage.S]
         ],
 
         // TST.B: 3 issue cycles
         5: [
-            [Stage.I, Stage.D, Stage.SX, Stage.MA, Stage.S]
-            [null   , null   , Stage.DL, Stage.SX, Stage.NA, Stage.S],
-            [null   , null   , null    , Stage.DL, Stage.SX, Stage.MA, Stage.S]
+            [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
+            [Stage.DL, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
+            [Stage.DL, Stage.SX, Stage.MA, Stage.S]
         ],
 
         // AND.B, OR.B, XOR.B: 4 issue cycles
@@ -328,6 +330,19 @@ add r0, r0
             [Stage.D, Stage.F1, Stage.F2 | Flags.Kick(5), Stage.FS],
             [Stage.F1, Stage.F2, Stage.FS]
 
+        ],
+
+        // 42.  FIPR: 1 issue cycle
+        42: [
+            [Stage.I, Stage.D, Stage.F0, Stage.F1, Stage.F2, Stage.FS]
+        ],
+
+        // Custom: fsqrt fr
+        137: [
+            [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
+            [Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3 | Flags.Kick(2)],
+            [Stage.F1, Stage.F2, Stage.FS | Flags.Kick(3)],
+            [Stage.F1, Stage.F2, Stage.FS],
         ],
 
     };
@@ -402,6 +417,31 @@ add r0, r0
         return [this.variant[index_of_part(this.asm, "FRm")], "R0", this.variant[index_of_part(this.asm, "@(R0,Rn)")].match(/@\(R0,([^)]*)\)/)[1]];
     }
 
+    function fvm() {
+        const fvdec = {
+            "FV0": ["FR0", "FR1", "FR2", "FR3"],
+            "FV4": ["FR4", "FR5", "FR6", "FR7"],
+            "FV8": ["FR8", "FR9", "FR10", "FR11"],
+            "FV12": ["FR12", "FR13", "FR14", "FR15"],
+        };
+        const rv = fvdec[this.variant[index_of_part(this.asm, "FVm")]];
+        if (!rv)
+            throw new Error(`Unknown FVm ${this.variant[index_of_part(this.asm, "FVm")]} in ${this.asm}`);
+        return rv;
+    }
+    function fvn() {
+        const fvdec = {
+            "FV0": ["FR0", "FR1", "FR2", "FR3"],
+            "FV4": ["FR4", "FR5", "FR6", "FR7"],
+            "FV8": ["FR8", "FR9", "FR10", "FR11"],
+            "FV12": ["FR12", "FR13", "FR14", "FR15"],
+        };
+        const rv = fvdec[this.variant[index_of_part(this.asm, "FVn")]];
+        if (!rv)
+            throw new Error(`Unknown FVn ${this.variant[index_of_part(this.asm, "FVn")]} in ${this.asm}`);
+        return rv;
+    }
+
 
     const Instructions = {
          1: {asm: ["EXTS.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
@@ -471,6 +511,9 @@ add r0, r0
         106: {asm: ["SHLR8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
         107: {asm: ["SHLR16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
 
+        // 118 RTS CO 2 3 #4 — — —
+        118: {asm: ["RTS"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[4], reads: none, writes: none },
+
         119: {asm: ["NOP"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: none },
 
         121: {asm: ["CLRS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
@@ -496,7 +539,13 @@ add r0, r0
         
         189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
         
+        // 191 FSQRT FRn FE 1 11/12 #37 F3 2 9 F1 10 1
+        191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 /*11/12*/, pattern: Patterns[137], reads: fn, writes: fn },
+
         192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
+        
+        // 231 FIPR FVm,FVn FE 1 4/5 #42 F1 3 1
+        231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
     };
 
     // Registers
@@ -535,6 +584,9 @@ add r0, r0
             case "FRm":
             case "FRn":
                 return ["FR0", "FR1", "FR2", "FR3", "FR4", "FR5", "FR6", "FR7", "FR8", "FR9", "FR10", "FR11", "FR12", "FR13", "FR14", "FR15"];
+            case "FVm":
+            case "FVn":
+                return ["FV0", "FV4", "FV8", "FV12"];
             default:
                 return [str]
         }
@@ -575,6 +627,14 @@ add r0, r0
 
             if (no_comments.length) {
                 processed = processInsn(no_comments);
+                if (processed[0] == '.') {
+                    console.log(`Skipping directive: ${processed} from ${line}`);
+                    continue;
+                }
+                if (processed[processed.length - 1] == ':') {
+                    console.log(`Skipping label: ${processed} from ${line}`);
+                    continue;
+                }
                 let def = instructions_rainbow[processed];
                 if (!def) {
                     console.error(`Unknown instruction: ${processed} from ${line}`);
@@ -784,12 +844,12 @@ add r0, r0
         };
 
         function data_provided_by(provide_seqs, seq) {
-            return provide_seqs.some(x => x.program_order < seq.program_order);
+            return provide_seqs.some(x => x.insn != seq.insn && x.program_order < seq.program_order);
         }
         let stage_lock = {}
 
         for(;;) {
-            if (in_flight.length == 0 && pc == insns.length || cycle > 10000)
+            if (in_flight.length == 0 && pc == insns.length || cycle > 1000)
                 break;
             
             table.push(Array.from({length: insns.tracks}, (_, index) => ({})));
@@ -868,18 +928,12 @@ add r0, r0
                 last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
             }
 
-            for (seq of in_flight) {
-                if (!seq.stall && seq.kick()) {
-                    
-                }
-            }
-
             for (seq of toremove) {
                 in_flight = in_flight.filter(e => e !== seq);
 
-                if (in_flight.filter(x => x.insn == seq.insn).length) {
+                if (in_flight.filter(x => x.insn == seq.insn).length == 0) {
                     seq.writes.forEach(reg => {
-                        if (provides[reg].filter(e => e !== seq).length) {
+                        if (provides[reg].filter(e => e == seq).length) {
                             throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
                         }
                     });
