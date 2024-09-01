@@ -929,9 +929,9 @@ add r0, r0
                     let relevant_seqs = [stage_lock[next_stage]];
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}~${next_stage_name}`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
-                } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => isParallel(x.group, seq.group))) {
+                } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => x.program_order > seq.program_order || isParallel(x.group, seq.group))) {
                     let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}!${next_stage_name}`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}!${next_stage_name}`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => x.program_order <= seq.program_order && !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
                     last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
@@ -956,7 +956,7 @@ add r0, r0
                     if (!seq.next_stage()) {
                         toremove.push(seq);
                     }
-                    if (seq.step == seq.latency + 1) {
+                    if (seq.step == seq.latency + 2) {
                         seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
                     }
                     if (seq.kick()) {
@@ -980,11 +980,15 @@ add r0, r0
                 in_flight = in_flight.filter(e => e !== seq);
 
                 if (in_flight.filter(x => x.insn == seq.insn).length == 0) {
-                    seq.writes.forEach(reg => {
-                        if (provides[reg].filter(e => e == seq).length) {
-                            throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
-                        }
-                    });
+                    if (seq.step == seq.latency + 1) {
+                        seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
+                    } else {
+                        seq.writes.forEach(reg => {
+                            if (provides[reg].filter(e => e == seq).length) {
+                                throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
+                            }
+                        });
+                    }
                 }
             }
 
