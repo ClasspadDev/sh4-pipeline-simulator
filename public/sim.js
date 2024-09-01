@@ -584,6 +584,9 @@ function generateTable(tableArray) {
         if (tableArray[0][rowIndex].id) {
             cell0.setAttribute("data-insn", tableArray[0][rowIndex].id);
         }
+        if (tableArray[0][rowIndex].result_ready) {
+            cell0.setAttribute("data-result-ready", tableArray[0][rowIndex].result_ready);
+        }
         if (tableArray[0][rowIndex].stall) {
             cell0.classList.add("stall");
         }
@@ -659,6 +662,9 @@ function generateTable(tableArray) {
                 if (colData0[rowIndex].id) {
                     cell0.setAttribute("data-insn", colData0[rowIndex].id);
                 }
+                if (colData0[rowIndex].result_ready) {
+                    cell0.setAttribute("data-result-ready", colData0[rowIndex].result_ready);
+                }
                 if (colData0[rowIndex].stall) {
                     cell0.classList.add("stall");
                 }
@@ -703,6 +709,9 @@ function generateTable(tableArray) {
                     }
                     if (colData[rowIndex].id) {
                         cell.setAttribute("data-insn", colData[rowIndex].id);
+                    }
+                    if (colData[rowIndex].result_ready) {
+                        cell.setAttribute("data-result-ready", colData[rowIndex].result_ready);
                     }
                     if (colData[rowIndex].stall) {
                         cell.classList.add("stall");
@@ -892,12 +901,12 @@ function do_sim() {
             } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
                 let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}|${next_stage_name}`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[id="step-${x.track}-${cycle}"]`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.program_order}"]`]).flat());
                 seq.stall = true;
             } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
                 let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}^${next_stage_name}`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[id="step-${x.track}-${cycle}"]`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.program_order}"]`]).flat());
                 seq.stall = true;
             } else {
                 seq.stall = false;
@@ -910,6 +919,10 @@ function do_sim() {
                 }
                 if (!seq.next_stage()) {
                     toremove.push(seq);
+                }
+                let result_ready = undefined;
+                if (seq.step == seq.latency + 1) {
+                    result_ready = seq.program_order;
                 }
                 if (seq.step == seq.latency + 2) {
                     seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
@@ -925,7 +938,7 @@ function do_sim() {
                     seq_index++;
                 }
                 
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}` };
+                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}`, result_ready: result_ready};
             }
 
             last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
