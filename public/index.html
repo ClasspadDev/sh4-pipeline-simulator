@@ -339,184 +339,164 @@ add r0, r0
         }
         throw new Error(`Part ${part} not found in ${asm}`);
     }
-    function reads_rm() {
+    function rm() {
         return [this.variant[index_of_part(this.asm, "Rm")].replace("@", "")];
     }
-    function reads_rn() {
+    function rn() {
         return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "")];
     }
 
-    function writes_rn() {
-        return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "")];
-    }
-
-    function reads_none() {
+    function none() {
         return [];
     }
 
-    function writes_none() {
-        return [];
-    }
-
-    function writes_r0() {
+    function r0() {
         return ["R0"];
     }
 
-    function reads_rmn() {
-        return [...new Set([...reads_rm.apply(this), ...reads_rn.apply(this)])];
+    function rmn() {
+        return [...rm.apply(this), ...rn.apply(this)];
     }
 
-    function reads_rmnsr() {
-        return [...reads_rmn.apply(this), "SR"];
+    function rmnsr() {
+        return [...rmn.apply(this), "SR"];
     }
 
-    function writes_rnsr() {
-        return [...writes_rn.apply(this), "SR"];
+    function rnsr() {
+        return [...rn.apply(this), "SR"];
     }
 
-    function reads_rnsr() {
-        return [...reads_rn.apply(this), "SR"];
-    }
-
-    function reads_r0() {
-        return ["R0"];
-    }
-
-    function writes_sr() {
+    function sr() {
         return ["SR"]
     }
 
-    function reads_r0m() {
-        return  [...new Set(["R0", ...reads_rm.apply(this)])];
+    function at_r0m() {
+        return  ["R0", this.variant[index_of_part(this.asm, "@(R0,Rm)")].match(/@\(R0,([^)]*)\)/)[1]];
     }
 
-    function reads_fn() {
+    function fn() {
         return [this.variant[index_of_part(this.asm, "FRn")]];
     }
 
-    function writes_fn() {
-        return [this.variant[index_of_part(this.asm, "FRn")]];
-    }
-
-    function writes_fpul() {
+    function fpul() {
         return ["FPUL"];
     }
 
-    function reads_fpul() {
-        return ["FPUL"];
+
+    function fnr0n() {
+        return [this.variant[index_of_part(this.asm, "FRn")], "R0", this.variant[index_of_part(this.asm, "Rn")]];
     }
 
-    function reads_fnr0n() {
-        return [...new Set([this.variant[index_of_part(this.asm, "FRn")], "R0", this.variant[index_of_part(this.asm, "Rn")]])];
-    }
-
-    function reads_r0gbr() {
+    function r0gbr() {
         return ["R0", "GBR"];
     }
 
-    function reads_fnm() {
-        return [...new Set([this.variant[index_of_part(this.asm, "FRm")], this.variant[index_of_part(this.asm, "FRn")]])];
+    function fnm() {
+        return [this.variant[index_of_part(this.asm, "FRm")], this.variant[index_of_part(this.asm, "FRn")]];
     }
 
-    function reads_fmrn() {
-        return [...new Set([this.variant[index_of_part(this.asm, "FRm")], ...reads_rn.apply(this)])];
+    function fmrn() {
+        return [this.variant[index_of_part(this.asm, "FRm")], ...rn.apply(this)];
+    }
+    function fm_at_r0n() {
+        return [this.variant[index_of_part(this.asm, "FRm")], "R0", this.variant[index_of_part(this.asm, "@(R0,Rn)")].match(/@\(R0,([^)]*)\)/)[1]];
     }
 
 
     const Instructions = {
-         1: {asm: ["EXTS.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
-         2: {asm: ["EXTS.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
-         3: {asm: ["EXTU.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
-         4: {asm: ["EXTU.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
-         5: {asm: ["MOV", "Rm","Rn"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
-         6: {asm: ["MOV", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_rn },
-         7: {asm: ["MOVA", "@(disp,PC)","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_r0 },
-         8: {asm: ["MOV.W", "@(disp,PC)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_none, writes: writes_rn },
-         9: {asm: ["MOV.L", "@(disp,PC)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_none, writes: writes_rn },
-        10: {asm: ["MOV.B", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_rm, writes: writes_rn },
-        11: {asm: ["MOV.W", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_rm, writes: writes_rn },
-        12: {asm: ["MOV.L", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_rm, writes: writes_rn },
+         1: {asm: ["EXTS.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
+         2: {asm: ["EXTS.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
+         3: {asm: ["EXTU.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
+         4: {asm: ["EXTU.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
+         5: {asm: ["MOV", "Rm","Rn"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: rm, writes: rn },
+         6: {asm: ["MOV", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: rn },
+         7: {asm: ["MOVA", "@(disp,PC)","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: r0 },
+         8: {asm: ["MOV.W", "@(disp,PC)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: none, writes: rn },
+         9: {asm: ["MOV.L", "@(disp,PC)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: none, writes: rn },
+        10: {asm: ["MOV.B", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
+        11: {asm: ["MOV.W", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
+        12: {asm: ["MOV.L", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
 
-        49: {asm: ["ADD", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
-        50: {asm: ["ADD", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_rn },
-        51: {asm: ["ADDC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmnsr, writes: writes_rn },
-        52: {asm: ["ADDV", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmnsr, writes: writes_rn },
-        53: {asm: ["CMP/EQ", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_r0, writes: writes_sr },
-        54: {asm: ["CMP/EQ", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        55: {asm: ["CMP/GE", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        56: {asm: ["CMP/GT", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        57: {asm: ["CMP/HI", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        58: {asm: ["CMP/HS", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        59: {asm: ["CMP/PL", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_sr },
-        60: {asm: ["CMP/PZ", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_sr },
-        61: {asm: ["CMP/STR", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        62: {asm: ["DIV0S", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr },
-        63: {asm: ["DIV0U"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
-        64: {asm: ["DIV1", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rnsr },
+        49: {asm: ["ADD", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
+        50: {asm: ["ADD", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: rn },
+        51: {asm: ["ADDC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmnsr, writes: rn },
+        52: {asm: ["ADDV", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmnsr, writes: rn },
+        53: {asm: ["CMP/EQ", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: sr },
+        54: {asm: ["CMP/EQ", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        55: {asm: ["CMP/GE", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        56: {asm: ["CMP/GT", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        57: {asm: ["CMP/HI", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        58: {asm: ["CMP/HS", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        59: {asm: ["CMP/PL", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: sr },
+        60: {asm: ["CMP/PZ", "Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: sr },
+        61: {asm: ["CMP/STR", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        62: {asm: ["DIV0S", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
+        63: {asm: ["DIV0U"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
+        64: {asm: ["DIV1", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rnsr },
 
-        67: {asm: ["DT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
+        67: {asm: ["DT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
 
-        73: {asm: ["NEG", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn },
+        73: {asm: ["NEG", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
 
-        75: {asm: ["SUB", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
+        75: {asm: ["SUB", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
 
-        78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
-        79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_r0 },
-        80: {asm: ["AND.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: 4, pattern: Patterns[6], reads: reads_r0gbr, writes: writes_none },
+        78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
+        79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: r0 },
+        80: {asm: ["AND.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: 4, pattern: Patterns[6], reads: r0gbr, writes: none },
 
-        81: {asm: ["NOT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rm, writes: writes_rn  },
-        82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
-        83: {asm: ["OR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_r0, writes: writes_r0  },
+        81: {asm: ["NOT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn  },
+        82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
+        83: {asm: ["OR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: r0  },
 
-        86: {asm: ["TST", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_sr  },
-        87: {asm: ["TST", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_r0, writes: writes_sr  },
+        86: {asm: ["TST", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr  },
+        87: {asm: ["TST", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: sr  },
 
-        89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn  },
-        90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_r0, writes: writes_r0  },
+        89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
+        90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: r0  },
 
-        92: {asm: ["ROTL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
-        93: {asm: ["ROTR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
-        94: {asm: ["ROTCL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
-        95: {asm: ["ROTCR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rnsr, writes: writes_rnsr },
-        96: {asm: ["SHAD", "Rm", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
-        97: {asm: ["SHAL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
-        98: {asm: ["SHAR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
-        99: {asm: ["SHLD", "Rm", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rmn, writes: writes_rn },
-        100: {asm: ["SHLL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
-        101: {asm: ["SHLL2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
-        102: {asm: ["SHLL8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
-        103: {asm: ["SHLL16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
-        104: {asm: ["SHLR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rnsr },
-        105: {asm: ["SHLR2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
-        106: {asm: ["SHLR8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
-        107: {asm: ["SHLR16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_rn, writes: writes_rn },
+        92: {asm: ["ROTL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
+        93: {asm: ["ROTR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
+        94: {asm: ["ROTCL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
+        95: {asm: ["ROTCR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
+        96: {asm: ["SHAD", "Rm", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
+        97: {asm: ["SHAL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
+        98: {asm: ["SHAR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
+        99: {asm: ["SHLD", "Rm", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
+        100: {asm: ["SHLL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
+        101: {asm: ["SHLL2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
+        102: {asm: ["SHLL8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
+        103: {asm: ["SHLL16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
+        104: {asm: ["SHLR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
+        105: {asm: ["SHLR2", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
+        106: {asm: ["SHLR8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
+        107: {asm: ["SHLR16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
 
-        119: {asm: ["NOP"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_none, writes: writes_none },
+        119: {asm: ["NOP"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: none },
 
-        121: {asm: ["CLRS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
-        122: {asm: ["CLRT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
-        123: {asm: ["SETS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
-        124: {asm: ["SETT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: reads_none, writes: writes_sr },
+        121: {asm: ["CLRS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
+        122: {asm: ["CLRT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
+        123: {asm: ["SETS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
+        124: {asm: ["SETT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
 
 
-        171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_none, writes: writes_fn },
-        172: {asm: ["FLDI1", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_none, writes: writes_fn },
-        173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fn, writes: writes_fn },
-        174: {asm: ["FMOV.S","@Rm","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_rm, writes: writes_fn },
+        171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
+        172: {asm: ["FLDI1", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
+        173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
+        174: {asm: ["FMOV.S","@Rm","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: fn },
         // 175: {asm: ["FMOV.S", "@Rm+","FRn"], group: Group.LS, issue: 1, latency: 1/2, pattern: Patterns[2] },
-        176: {asm: ["FMOV.S", "@(R0,Rm)","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: reads_r0m, writes: writes_fn },
-        177: {asm: ["FMOV.S", "FRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fmrn, writes: writes_none },
-        178: {asm: ["FMOV.S", "FRm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fn, writes: writes_rn },
-        179: {asm: ["FMOV.S", "FRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: reads_fnr0n, writes: writes_none },
-        180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fn, writes: writes_fpul },
-        181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: reads_fpul, writes: writes_fn },
+        176: {asm: ["FMOV.S", "@(R0,Rm)","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: fn },
+        177: {asm: ["FMOV.S", "FRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fmrn, writes: none },
+        178: {asm: ["FMOV.S", "FRm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fn, writes: rn },
+        179: {asm: ["FMOV.S", "FRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fm_at_r0n, writes: none },
+        180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fpul },
+        181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fpul, writes: fn },
 
-        183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: reads_fnm, writes: writes_fn },
+        183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
 
         
-        189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: reads_fnm, writes: writes_fn },
+        189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
         
-        192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: reads_fnm, writes: writes_fn },
+        192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     };
 
     // Registers
@@ -546,7 +526,7 @@ add r0, r0
             case "@Rn":
                 return ["@R0", "@R1", "@R2", "@R3", "@R4", "@R5", "@R6", "@R7", "@R8", "@R9", "@R10", "@R11", "@R12", "@R13", "@R14", "@R15"];
             case "#imm":
-                return Array.from({ length: 256 }, (_, index) => `${index}`);
+                return Array.from({ length: 256 }, (_, index) => `#${index}`);
             case "@(disp,PC)":
                 return Array.from({ length: 256 }, (_, index) => `@(${index},PC)`);
             case "@(R0,Rm)":
@@ -582,10 +562,16 @@ add r0, r0
             let processed = line.split(/(;|!|\/\/)/)[0].replace("\t", " ").trim();
 
             if (processed.length) {
-                processed = processed.replace(/\s+/, " ").replace(", ", ",").toLowerCase();
+                processed = processed.replace(/\s+/g, " ")
+                                    .replace(/\s*,\s*/g, ",")
+                                    .replace(/@\s*/g, "@")
+                                    .replace(/\s*\(\s*/g, "(")
+                                    .replace(/\s*\)\s*/g, ")").toLowerCase();
                 let def = instructions_rainbow[processed];
-                if (!def)
+                if (!def) {
+                    console.error(`Unknown instruction: ${processed} from ${line}`);
                     return null;
+                }
                 rv.push({
                     pc: pc, track: track, text: processed, def: def, pipe: -1, step: -1,
                     format: function() {
@@ -626,8 +612,8 @@ add r0, r0
         seq.program_order = program_order + num;
         seq.stall = false;
         seq.insn = insn;
-        seq.reads = insn.def.reads();
-        seq.writes = insn.def.writes();
+        seq.reads = [...new Set(insn.def.reads())];
+        seq.writes = [... new Set(insn.def.writes())];
         seq.latency = insn.def.latency;
         seq.group = insn.def.group;
         seq.pc = insn.pc;
@@ -706,6 +692,12 @@ add r0, r0
         document.querySelector(".result").appendChild(table);
     }
 
+    if (window.location.href) {
+        let src = window.location.href.split("#")[1];
+        if (src) {
+            document.querySelector(".src").value = atob(src);
+        }
+    }
 
     function do_sim() {
         let insns = assemble(document.querySelector(".src").value)
@@ -713,6 +705,7 @@ add r0, r0
             document.body.classList.add("error")
             return;
         }
+        window.location.href = `#${btoa(document.querySelector(".src").value)}`;
 
         document.body.classList.remove("error")
 
@@ -803,9 +796,6 @@ add r0, r0
             let toremove = [];
             for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
                 let seq = in_flight[seq_index];
-                if (seq.step == seq.latency + 1) {
-                    seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
-                }
                     
                 let current_stage = seq.stage();
                 let next_stage = seq.next_stage();
@@ -850,6 +840,9 @@ add r0, r0
                     if (!seq.next_stage()) {
                         toremove.push(seq);
                     }
+                    if (seq.step == seq.latency + 1) {
+                        seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
+                    }
                     if (seq.kick()) {
                         let kick_seq = getSeq(seq.insn, seq.kick(), seq.program_order);
                         if (kick_seq.stage_lock()) {
@@ -874,7 +867,15 @@ add r0, r0
             }
 
             for (seq of toremove) {
-                in_flight = in_flight.filter(e => e !== seq)
+                in_flight = in_flight.filter(e => e !== seq);
+
+                if (in_flight.filter(x => x.insn == seq.insn).length) {
+                    seq.writes.forEach(reg => {
+                        if (provides[reg].filter(e => e !== seq).length) {
+                            throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
+                        }
+                    });
+                }
             }
 
             const in_i_stage = in_flight.filter(seq => seq.stage() == Stage.I);
