@@ -63,8 +63,12 @@ tr {
     height: 2.3em;
 }
 
-body:not(.less-borders) td {
+body td {
     border: 1px solid black;
+}
+
+body.less-borders td {
+    border-color: transparent;
 }
 
 table {
@@ -198,7 +202,7 @@ td.tooltip {
 
 @media screen {
     /* Show the tooltip text when hovering over the tooltip container */
-    .tooltip:hover .tooltiptext, .tooltip.copied .tooltiptext {
+    .tooltip:not(.copy-link):hover .tooltiptext, .tooltip.copied .tooltiptext {
         visibility: visible;
         opacity: 0.9;
     }
