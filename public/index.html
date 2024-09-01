@@ -71,6 +71,11 @@
             color: wheat;
         }
 
+        td.lock {
+            outline: 3px solid black;
+            outline-offset: -3px;
+        }
+
         /* Tooltip container */
         .tooltip {
             position: relative;
@@ -87,29 +92,30 @@
             border-radius: 5px;
             padding: 5px 7px;
             position: absolute;
-            bottom: 135%; /* Position the tooltip above the text */
+            top: 135%; /* Position the tooltip above the text */
             left: 0;
             margin-left: 0; /* Use margin to center the tooltip */
             opacity: 0; /* Start with tooltip hidden */
             transition: opacity 0.3s;
+            z-index: 1;
         }
 
         /* Tooltip arrow */
         .tooltip .tooltiptext::after {
             content: "";
             position: absolute;
-            top: 100%; /* Bottom of the tooltip */
+            bottom: 100%; /* Top of the tooltip */
             left: 2em;
             margin-left: -5px;
             border-width: 5px;
             border-style: solid;
-            border-color: #555 transparent transparent transparent; /* Arrow color */
+            border-color: transparent transparent #555 transparent; /* Arrow color */
         }
 
         /* Show the tooltip text when hovering over the tooltip container */
         .tooltip:hover .tooltiptext {
             visibility: visible;
-            opacity: 1;
+            opacity: 0.9;
         }
         .tooltiptext:hover {
             display: none !important;
@@ -568,6 +574,9 @@ add r0, r0
         seq.stage = function() {
             return this.pattern[this.step] & Stage.Mask;
         }
+        seq.stage_lock = function() {
+            return this.pattern[this.step] & Flags.L;
+        }
         seq.kick = function() {
             return this.pattern[this.step] >> Flags.KShift;
         }
@@ -580,7 +589,7 @@ add r0, r0
         }
         seq.pattern = deepcopy(insn.def.pattern[num]);
         seq.step = 0;
-        seq.program_order = program_order;
+        seq.program_order = program_order + num;
         seq.stall = false;
         seq.insn = insn;
         seq.reads = insn.def.reads();
@@ -621,6 +630,9 @@ add r0, r0
                     }
                     if (colData[rowIndex].full) {
                         cell.classList.add("full");
+                    }
+                    if (colData[rowIndex].lock) {
+                        cell.classList.add("lock");
                     }
                     if (colData[rowIndex].relevant) {
                         cell.setAttribute("data-relevant", colData[rowIndex].relevant);
@@ -711,6 +723,7 @@ add r0, r0
         function data_provided_by(provide_seqs, seq) {
             return provide_seqs.some(x => x.program_order < seq.program_order);
         }
+        let stage_lock = {}
 
         for(;;) {
             if (in_flight.length == 0 && pc == insns.length || cycle > 10000)
@@ -720,7 +733,8 @@ add r0, r0
             let last_column = table[table.length - 1];
 
             let toremove = [];
-            for (seq of in_flight) {
+            for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
+                let seq = in_flight[seq_index];
                 if (seq.step == seq.latency + 1) {
                     seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
                 }
@@ -734,41 +748,57 @@ add r0, r0
 
                 if (in_next_stage.length == 2 ) {
                     relevant_seqs = in_next_stage;
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br />")}` };
-                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br />")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
-                } else if ( !in_next_stage.every(x => isParallel(x.group, seq.group))) {
+                } else if (stage_lock[next_stage] && stage_lock[next_stage] != seq) {
+                    let relevant_seqs = [stage_lock[next_stage]];
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `~${current_stage_name}~`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
+                } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => isParallel(x.group, seq.group))) {
                     let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
-                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
-                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `*${current_stage_name}*`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
                     let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `|${current_stage_name}|`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
                     let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, stall:true, text: `^${current_stage_name}^`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => x.insn.pc ));
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
                     seq.stall = true;
                 } else {
                     seq.stall = false;
-                    seq.step++;
-
-                    if (!next_stage) {
-                        toremove.push(seq);
-                    } else {
-                        last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}` };
+                    if (seq.stage_lock()) {
+                        stage_lock[seq.stage()] = null;
                     }
+                    seq.step++;
+                    if (seq.stage_lock()) {
+                        stage_lock[seq.stage()] = seq;
+                    }
+                    if (!seq.next_stage()) {
+                        toremove.push(seq);
+                    }
+                    if (seq.kick()) {
+                        let kick_seq = getSeq(seq.insn, seq.kick(), seq.program_order);
+                        if (kick_seq.stage_lock()) {
+                            stage_lock[kick_seq.stage()] = kick_seq;
+                        }
+                        in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
+                        last_column[kick_seq.track] = {id: `step-${kick_seq.track}-${cycle}`, seq: kick_seq, lock: stage_lock[kick_seq.stage()], text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}${stage_lock[kick_seq.stage()]?`<br/>Stage Lock: ${StageNames[kick_seq.stage()]}`: ""}`};
+                        seq_index++;
+                    }
+                    
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()], text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}` };
                 }
             }
 
             for (seq of in_flight) {
                 if (!seq.stall && seq.kick()) {
-                    let kick_seq = getSeq(seq.insn, seq.kick(), seq.program_order);
-                    in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
-                    last_column[kick_seq.track] = {id: `step-${seq.track}-${cycle}`, seq: kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}`};
+                    
                 }
             }
 
@@ -780,7 +810,8 @@ add r0, r0
 
             for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
                 let insn = insns[pc++];
-                let seq = getSeq(insn, 0, program_order++);
+                let seq = getSeq(insn, 0, program_order);
+                program_order += insn.def.pattern.length;
                 in_flight.push(seq);
                 insn.def.writes().forEach(reg => provides[reg].push(seq));
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
@@ -814,9 +845,9 @@ add r0, r0
         document.querySelectorAll(".marked").forEach(x => x.classList.remove("marked"));
 
         if (e.target.getAttribute("data-relevant")) {
-            let relevant_pcs = JSON.parse(e.target.getAttribute("data-relevant"));
-            for (pc of relevant_pcs) {
-                document.getElementById(`insn-${pc}`).classList.add("marked");
+            let relevant_elements = JSON.parse(e.target.getAttribute("data-relevant"));
+            for (element of relevant_elements) {
+                document.getElementById(element).classList.add("marked");
             }
         }
     });
