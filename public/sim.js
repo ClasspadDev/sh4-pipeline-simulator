@@ -1,5 +1,6 @@
 const Flags = {
     L: 16, // Lock
+    R: 32, // Result
     KShift: 6,
     Kick(x) { return (x << this.KShift); }
 }
@@ -77,7 +78,7 @@ const Patterns = {
 
     // JMP, RTS, BRAF: 2 issue cycles
     4: [
-        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S],
+        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S | Flags.R],
         [Stage.DL, Stage.EX, Stage.NA, Stage.S]
     ],
 
@@ -133,7 +134,6 @@ const Patterns = {
         [Stage.D, Stage.F1 | Flags.Kick(4), Stage.F2, Stage.FS],
         [Stage.D, Stage.F1, Stage.F2 | Flags.Kick(5), Stage.FS],
         [Stage.F1, Stage.F2, Stage.FS]
-
     ],
 
     // 42.  FIPR: 1 issue cycle
@@ -145,8 +145,7 @@ const Patterns = {
     137: [
         [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
         [Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3 | Flags.Kick(2)],
-        [Stage.F1, Stage.F2, Stage.FS | Flags.Kick(3)],
-        [Stage.F1, Stage.F2, Stage.FS],
+        [Stage.F1, Stage.F2, Stage.FS | Flags.R],
     ],
 
 };
@@ -211,6 +210,10 @@ function rm_at_d4rn() {
 
 function fn() {
     return [this.variant[index_of_part(this.asm, "FRn")]];
+}
+
+function fm() {
+    return [this.variant[index_of_part(this.asm, "FRm")]];
 }
 
 function fpul() {
@@ -316,7 +319,7 @@ const Instructions = {
 
     78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
     79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: r0 },
-    80: {asm: ["AND.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: 4, pattern: Patterns[6], reads: r0gbr, writes: none },
+    80: {asm: ["AND.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: -1, pattern: Patterns[6], reads: r0gbr, writes: none },
 
     81: {asm: ["NOT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn  },
     82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
@@ -364,14 +367,14 @@ const Instructions = {
 
     171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
     172: {asm: ["FLDI1", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
-    173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
+    173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fm, writes: fn },
     174: {asm: ["FMOV.S","@Rm","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: fn },
     // 175: {asm: ["FMOV.S", "@Rm+","FRn"], group: Group.LS, issue: 1, latency: 1/2, pattern: Patterns[2] },
     176: {asm: ["FMOV.S", "@(R0,Rm)","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: fn },
     177: {asm: ["FMOV.S", "FRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fmrn, writes: none },
-    178: {asm: ["FMOV.S", "FRm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fn, writes: rn },
+    178: {asm: ["FMOV.S", "FRm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fmrn, writes: rn },
     179: {asm: ["FMOV.S", "FRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fm_at_r0n, writes: none },
-    180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fpul },
+    180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fm, writes: fpul },
     181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fpul, writes: fn },
 
     183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
@@ -388,8 +391,26 @@ const Instructions = {
     231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
 };
 
-// Registers
-// 16 gprs for now, as a bitfield
+
+
+for (const def of Object.values(Instructions)) {
+    if (def.latency == -1)
+        continue;
+    if (def.pattern.length == 1) {
+        def.pattern = deepcopy(def.pattern);
+        if (1 + def.latency >= def.pattern[0].length) {
+            throw new Error(`Latency too high for ${def.asm.join(" ")}`);
+        }
+        def.pattern[0][1 + def.latency] |= Flags.R;
+        def.result_seq = 0;
+    } else {
+        if (!def.pattern.some(p => p.some(s => s & Flags.R))) {
+            throw new Error(`No result in pattern ${def.pattern} for ${def.asm.join(" ")}`);
+        }
+        def.result_seq = def.pattern.findIndex(p => p.some(s => s & Flags.R));
+    }
+}
+
 let instructions_rainbow = {}
 
 function cartesianProduct(arrays) {
@@ -490,7 +511,7 @@ function assemble(lines) {
                 return null;
             }
             rv.push({
-                pc: pc, track: track, text: processed, def: def, pipe: -1, step: -1,
+                pc: pc, track: track, text: processed, def: def, program_order: -1, seq: [],
                 format: function() {
                     return `${this.pc.toString(16).padStart(8,"0")} ${this.text}`;
                 }
@@ -504,39 +525,49 @@ function assemble(lines) {
 
     return rv;
 }
+function getSeq(insn, num) {
+    return insn.seq[num];
+}
 
-function getSeq(insn, num, program_order) {
-    let seq = {};
+function makeSeq(insn, program_order) {
+    let seqs = [];
 
-    seq.stage = function() {
-        return this.pattern[this.step] & Stage.Mask;
-    }
-    seq.stage_lock = function() {
-        return this.pattern[this.step] & Flags.L;
-    }
-    seq.kick = function() {
-        return this.pattern[this.step] >> Flags.KShift;
-    }
-    seq.next_stage = function() {
-        let rv = this.pattern[this.step + 1];
-        return rv ? rv & Stage.Mask : rv;
-    }
-    seq.is_last_stage = function() {
-        return this.step == this.pattern.length - 1;
-    }
-    seq.pattern = deepcopy(insn.def.pattern[num]);
-    seq.step = 0;
-    seq.program_order = program_order + num;
-    seq.stall = false;
-    seq.insn = insn;
-    seq.reads = [...new Set(insn.def.reads())];
-    seq.writes = [... new Set(insn.def.writes())];
-    seq.latency = insn.def.latency;
-    seq.group = insn.def.group;
-    seq.pc = insn.pc;
-    seq.track = insn.track + num;
+    for (let num = 0; num < insn.def.pattern.length; num++) {
+        seq = {};
+        seq.stage = function() {
+            return this.pattern[this.step] & Stage.Mask;
+        }
+        seq.stage_lock = function() {
+            return this.pattern[this.step] & Flags.L;
+        }
+        seq.generates_result = function() {
+            return this.pattern[this.step] & Flags.R;
+        }
+        seq.kick = function() {
+            return this.pattern[this.step] >> Flags.KShift;
+        }
+        seq.next_stage = function() {
+            let rv = this.pattern[this.step + 1];
+            return rv ? rv & Stage.Mask : rv;
+        }
+        seq.is_last_stage = function() {
+            return this.step == this.pattern.length - 1;
+        }
+        seq.pattern = deepcopy(insn.def.pattern[num]);
+        seq.step = 0;
+        seq.program_order = program_order + num;
+        seq.stall = false;
+        seq.insn = insn;
+        seq.reads = [...new Set(insn.def.reads())];
+        seq.writes = [... new Set(insn.def.writes())];
+        seq.latency = insn.def.latency;
+        seq.group = insn.def.group;
+        seq.pc = insn.pc;
+        seq.track = insn.track + num;
 
-    return seq;
+        seqs.push(seq);
+    }
+    return seqs;
 }
 
 function generateTable(tableArray) {
@@ -874,6 +905,7 @@ function do_sim() {
         }
 
         let toremove = [];
+        let toresult = [];
         for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
             let seq = in_flight[seq_index];
                 
@@ -898,7 +930,7 @@ function do_sim() {
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}!${next_stage_name}`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => x.program_order <= seq.program_order && !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
                 last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
                 seq.stall = true;
-            } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
+            } else if ( (current_stage != Stage.I || seq.latency == 0) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
                 let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}|${next_stage_name}`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
                 last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.program_order}"]`]).flat());
@@ -913,22 +945,20 @@ function do_sim() {
                 if (seq.stage_lock()) {
                     stage_lock[seq.stage()] = null;
                 }
+                let result_ready = undefined;
                 seq.step++;
+                if (seq.generates_result()) {
+                    result_ready = seq.insn.program_order.toString();
+                    toresult.push(seq);
+                }
                 if (seq.stage_lock()) {
                     stage_lock[seq.stage()] = seq;
                 }
                 if (!seq.next_stage()) {
                     toremove.push(seq);
                 }
-                let result_ready = undefined;
-                if (seq.step == seq.latency + 1) {
-                    result_ready = seq.program_order;
-                }
-                if (seq.step == seq.latency + 2) {
-                    seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
-                }
                 if (seq.kick()) {
-                    let kick_seq = getSeq(seq.insn, seq.kick(), seq.program_order);
+                    let kick_seq = getSeq(seq.insn, seq.kick());
                     if (kick_seq.stage_lock()) {
                         stage_lock[kick_seq.stage()] = kick_seq;
                     }
@@ -959,30 +989,35 @@ function do_sim() {
             }
         }
 
+        for (seq of toresult) {
+            seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
+        }
+        toresult.length = 0;
+
         for (seq of toremove) {
             in_flight = in_flight.filter(e => e !== seq);
 
             if (in_flight.filter(x => x.insn == seq.insn).length == 0) {
-                if (seq.step == seq.latency + 1) {
-                    seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
-                } else {
-                    seq.writes.forEach(reg => {
-                        if (provides[reg].filter(e => e == seq).length) {
-                            throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
-                        }
-                    });
-                }
+                seq.writes.forEach(reg => {
+                    if (provides[reg].filter(e => e == seq).length) {
+                        throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
+                    }
+                });
             }
         }
+        toremove.length = 0;
 
         const in_i_stage = in_flight.filter(seq => seq.stage() == Stage.I);
 
         for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
             let insn = insns[pc++];
-            let seq = getSeq(insn, 0, program_order);
+            insn.program_order = program_order;
+            insn.seq = makeSeq(insn, program_order);
             program_order += insn.def.pattern.length;
+            let seq = getSeq(insn, 0);
             in_flight.push(seq);
-            insn.def.writes().forEach(reg => provides[reg].push(seq));
+            let result_seq = getSeq(insn, insn.def.result_seq, program_order);
+            result_seq.writes.forEach(reg => provides[reg].push(result_seq));
             last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
             last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
         }
