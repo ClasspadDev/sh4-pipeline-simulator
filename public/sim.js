@@ -540,7 +540,9 @@ function getSeq(insn, num, program_order) {
 }
 
 function generateTable(tableArray) {
-    document.querySelector(".result").innerHTML = "";
+    const outerContainer = document.querySelector(".result-outer");
+    // Clear the outer container
+    outerContainer.innerHTML = "";
 
     // Determine the number of rows by finding the length of the first column
     const numRows = tableArray[0].length;
@@ -554,7 +556,71 @@ function generateTable(tableArray) {
         return Math.max(maxLength, cell.text ? cell.text.length : 0);
     }, 0);
 
+    // Create the extra table at the beginning with only the first column
+    const extraTable = document.createElement('table');
+    extraTable.classList.add("print-hidden");
+
+    for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
+        const row = document.createElement('tr');
+        if (tableArray[0][rowIndex].pc !== undefined) {
+            row.classList.add(`row-insn-${tableArray[0][rowIndex].pc}`);
+        
+            if (rowIndex == 0 || tableArray[0][rowIndex - 1].pc != tableArray[0][rowIndex].pc) {
+                row.classList.add("start");
+            }
+            if (rowIndex + 1 == numRows || tableArray[0][rowIndex + 1].pc != tableArray[0][rowIndex].pc) {
+                row.classList.add("end");
+            }
+        }
+
+        const cell0 = document.createElement('td');
+        const paddedText = (tableArray[0][rowIndex].text ? tableArray[0][rowIndex].text : "").padEnd(maxTextLength, ' ').replace(/ /g, "&nbsp;");
+        if (tableArray[0][rowIndex].explanation) {
+            cell0.innerHTML = `<span class="tooltip"><span class="tooltiptext">${tableArray[0][rowIndex].explanation}</span>${paddedText}</span>`;
+        } else {
+            cell0.innerHTML = `<span class="tooltip"></span>${paddedText}`;
+        }
+
+        if (tableArray[0][rowIndex].id) {
+            cell0.setAttribute("data-insn", tableArray[0][rowIndex].id);
+        }
+        if (tableArray[0][rowIndex].stall) {
+            cell0.classList.add("stall");
+        }
+        if (tableArray[0][rowIndex].full) {
+            cell0.classList.add("full");
+        }
+        if (tableArray[0][rowIndex].lock) {
+            cell0.classList.add("lock");
+        }
+        if (tableArray[0][rowIndex].screen_hidden_text) {
+            cell0.classList.add("screen-hidden-text");
+        }
+        for (const element of [cell0, cell0.children[0]]) {
+            if (tableArray[0][rowIndex].relevant) {
+                element.setAttribute("data-relevant", tableArray[0][rowIndex].relevant);
+            }
+            if (tableArray[0][rowIndex].current) {
+                element.setAttribute("data-current", tableArray[0][rowIndex].current);
+            }
+            element.setAttribute("data-cycle", `0`);
+        }
+
+        row.appendChild(cell0);
+        extraTable.appendChild(row);
+    }
+
+    // Append the extra table to the outer container
+    outerContainer.appendChild(extraTable);
+
+    const innerContainer = document.createElement('div');
+    innerContainer.classList.add("result");
+    outerContainer.appendChild(innerContainer);
+
+    // Generate the main tables and wrap each in a div with class 'result'
     for (let tableIndex = 0; tableIndex < numTables; tableIndex++) {
+        // Create a wrapper div with class 'result'
+        
         // Create a table element for each set of columns
         const table = document.createElement('table');
 
@@ -562,35 +628,36 @@ function generateTable(tableArray) {
         for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
             // Create a new row
             const row = document.createElement('tr');
-            row.classList.add(`row-insn-${tableArray[0][rowIndex].pc}`);
-            if (rowIndex == 0 || tableArray[0][rowIndex - 1].pc != tableArray[0][rowIndex].pc) {
-                row.classList.add("start");
-            }
-            if (rowIndex + 1 == numRows || tableArray[0][rowIndex + 1].pc != tableArray[0][rowIndex].pc) {
-                row.classList.add("end");
+            if (tableArray[0][rowIndex].pc !== undefined) {
+                row.classList.add(`row-insn-${tableArray[0][rowIndex].pc}`);
+            
+                if (rowIndex == 0 || tableArray[0][rowIndex - 1].pc != tableArray[0][rowIndex].pc) {
+                    row.classList.add("start");
+                }
+                if (rowIndex + 1 == numRows || tableArray[0][rowIndex + 1].pc != tableArray[0][rowIndex].pc) {
+                    row.classList.add("end");
+                }
             }
             let first = true;
 
-            // Always insert column 0 first with the and screen-hidden class for tableIndex != 0
+            // Always insert column 0 first with the screen-hidden class for tableIndex != 0
             const colData0 = tableArray[0];
             const cell0 = document.createElement('td');
-            if (tableIndex != 0) {
-                cell0.classList.add("screen-hidden"); // Add screen-hidden class to column 0
-            }
+            cell0.classList.add("screen-hidden"); // Add screen-hidden class to column 0
             if (first) {
                 cell0.style = `z-index: ${numRows - rowIndex + 1};`;
                 first = false;
             }
             if (colData0[rowIndex]) {
                 // Pad the text in column 0 to the maximum length
-                const paddedText = (colData0[rowIndex].text?colData0[rowIndex].text:"").padEnd(maxTextLength, ' ').replace(/ /g, "&nbsp;");
+                const paddedText = (colData0[rowIndex].text ? colData0[rowIndex].text : "").padEnd(maxTextLength, ' ').replace(/ /g, "&nbsp;");
                 if (colData0[rowIndex].explanation) {
                     cell0.innerHTML = `<span class="tooltip"><span class="tooltiptext">${colData0[rowIndex].explanation}</span>${paddedText}</span>`;
                 } else {
                     cell0.innerHTML = `<span class="tooltip"></span>${paddedText}`;
                 }
                 if (colData0[rowIndex].id) {
-                    cell0.id = colData0[rowIndex].id;
+                    cell0.setAttribute("data-insn", colData0[rowIndex].id);
                 }
                 if (colData0[rowIndex].stall) {
                     cell0.classList.add("stall");
@@ -601,7 +668,7 @@ function generateTable(tableArray) {
                 if (colData0[rowIndex].lock) {
                     cell0.classList.add("lock");
                 }
-                if (colData0[rowIndex].screen_hidden) {
+                if (colData0[rowIndex].screen_hidden_text) {
                     cell0.classList.add("screen-hidden-text");
                 }
                 for (const element of [cell0, cell0.children[0]]) {
@@ -623,7 +690,7 @@ function generateTable(tableArray) {
             let columnCount = 1; // Keep track of the number of columns
             for (let colIndex = tableIndex * columnsPerTable + 1; colIndex < Math.min((tableIndex + 1) * columnsPerTable + 1, tableArray.length); colIndex++) {
                 const colData = tableArray[colIndex];
-                
+
                 // Create a new cell (td element)
                 const cell = document.createElement('td');
                 if (colData[rowIndex]) {
@@ -635,7 +702,7 @@ function generateTable(tableArray) {
                         cell.innerHTML = `<span class="tooltip"></span>`;
                     }
                     if (colData[rowIndex].id) {
-                        cell.id = colData[rowIndex].id;
+                        cell.setAttribute("data-insn", colData[rowIndex].id);
                     }
                     if (colData[rowIndex].stall) {
                         cell.classList.add("stall");
@@ -646,10 +713,10 @@ function generateTable(tableArray) {
                     if (colData[rowIndex].lock) {
                         cell.classList.add("lock");
                     }
-                    if (colData[rowIndex].screen_hidden) {
+                    if (colData[rowIndex].screen_hidden_text) {
                         cell.classList.add("screen-hidden");
                     }
-                    if (colData[rowIndex].screen_hidden) {
+                    if (colData[rowIndex].screen_hidden_text) {
                         cell.classList.add("screen-hidden-text");
                     }
                     for (const element of [cell, cell.children[0]]) {
@@ -685,10 +752,11 @@ function generateTable(tableArray) {
             table.appendChild(row);
         }
 
-        // Append the table to the result container
-        document.querySelector(".result").appendChild(table);
+        // Append the table to the result wrapper
+        innerContainer.appendChild(table);
     }
 }
+
 
 
 let urlParams = new URLSearchParams(window.location.search);
@@ -719,19 +787,19 @@ function do_sim() {
     let initial_column = Array.from({length: insns.tracks}, (_, index) => null);
     for (let i = 0; i < insns.length; i++) {
         initial_column[insns[i].track] = {
-            id: `insn-${insns[i].pc}`,
+            id: `${insns[i].pc}`,
             text: insns[i].format(), 
-            explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` 
+            explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` ,
+            pc: insns[i].pc,
+            current: `.row-insn-${insns[i].pc}`
         };
 
         for (let j = 1; j < insns[i].def.pattern.length; j++) {
             if (!initial_column[insns[i].track + j]) {
                 initial_column[insns[i].track + j] = deepcopy(initial_column[insns[i].track]);
             }
-            initial_column[insns[i].track + j].pc = insns[i].pc;
-            initial_column[insns[i].track + j].current = `.row-insn-${insns[i].pc}`
 
-            initial_column[insns[i].track + j].screen_hidden = true;
+            initial_column[insns[i].track + j].screen_hidden_text = true;
         }
     }
 
@@ -810,26 +878,26 @@ function do_sim() {
             if (in_next_stage.length == 2 ) {
                 relevant_seqs = in_next_stage;
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}*${next_stage_name}`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br />")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
                 seq.stall = true;
             } else if (stage_lock[next_stage] && stage_lock[next_stage] != seq) {
                 let relevant_seqs = [stage_lock[next_stage]];
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}~${next_stage_name}`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
             } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => x.program_order > seq.program_order || isParallel(x.group, seq.group))) {
                 let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}!${next_stage_name}`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => x.program_order <= seq.program_order && !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
                 seq.stall = true;
             } else if ( (current_stage != Stage.I) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
                 let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}|${next_stage_name}`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[id="step-${x.track}-${cycle}"]`]).flat());
                 seq.stall = true;
             } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
                 let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}^${next_stage_name}`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`insn-${x.insn.pc}`, `step-${x.track}-${cycle}`]).flat());
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[id="step-${x.track}-${cycle}"]`]).flat());
                 seq.stall = true;
             } else {
                 seq.stall = false;
@@ -947,7 +1015,7 @@ document.addEventListener("mouseover", function(e) {
     if (e.target.getAttribute("data-relevant")) {
         let relevant_elements = JSON.parse(e.target.getAttribute("data-relevant"));
         for (element of relevant_elements) {
-            document.getElementById(element).classList.add("marked");
+            document.querySelectorAll(element).forEach(x => x.classList.add("marked"));
         }
     }
     if (!document.getElementById("hide-crosshairs").checked) {
