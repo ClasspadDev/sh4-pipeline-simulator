@@ -23,7 +23,7 @@ body.error {
     body {
         margin: 0;
     }
-    .src, .options, .copy-link, .print-hidden {
+    .src, .options, .quick-actions, .print-hidden {
         display: none;
     }
     table {
