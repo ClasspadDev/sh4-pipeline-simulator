@@ -394,8 +394,10 @@ const Instructions = {
 
 
 for (const def of Object.values(Instructions)) {
-    if (def.latency == -1)
+    if (def.latency == -1) {
+        def.result_seq = -1;
         continue;
+    }
     if (def.pattern.length == 1) {
         def.pattern = deepcopy(def.pattern);
         if (1 + def.latency >= def.pattern[0].length) {
