@@ -1019,9 +1019,9 @@ function do_sim() {
             if (insn.def.result_seq) {
                 let result_seq = getSeq(insn, insn.def.result_seq, program_order);
                 result_seq.writes.forEach(reg => provides[reg].push(result_seq));
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
-                last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
             }
+            last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
+            last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
         }
 
         last_column.unshift({text: cycle.toString(), explanation: "Cycle Number"})
