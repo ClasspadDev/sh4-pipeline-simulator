@@ -1016,7 +1016,7 @@ function do_sim() {
             program_order += insn.def.pattern.length;
             let seq = getSeq(insn, 0);
             in_flight.push(seq);
-            if (insn.def.result_seq) {
+            if (insn.def.result_seq !== -1) {
                 let result_seq = getSeq(insn, insn.def.result_seq, program_order);
                 result_seq.writes.forEach(reg => provides[reg].push(result_seq));
             }
