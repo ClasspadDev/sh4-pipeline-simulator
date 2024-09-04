@@ -35,7 +35,6 @@ StageNames[Stage.NA] = "NA";
 StageNames[Stage.MA] = "MA";
 StageNames[Stage.S] = "S";
 StageNames[Stage.FS] = "FS";
-StageNames[Stage.DL] = "[D]";
 
 const Group = {
     MT: "MT",
@@ -47,7 +46,9 @@ const Group = {
 };
 
 function isParallel(group1, group2) {
-    if (group1 == Group.CO || group2 == Group.CO)
+    if (group1 == Group.MT && group2 == Group.MT)
+        return true;
+    else if (group1 == Group.CO || group2 == Group.CO)
         return false;
     else
         return group1 != group2;
@@ -79,14 +80,14 @@ const Patterns = {
     // JMP, RTS, BRAF: 2 issue cycles
     4: [
         [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S | Flags.R],
-        [Stage.DL, Stage.EX, Stage.NA, Stage.S]
+        [Stage.D | Flags.L, Stage.EX, Stage.NA, Stage.S]
     ],
 
     // TST.B: 3 issue cycles
     5: [
         [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
-        [Stage.DL, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
-        [Stage.DL, Stage.SX, Stage.MA, Stage.S]
+        [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S]
     ],
 
     // AND.B, OR.B, XOR.B: 4 issue cycles
