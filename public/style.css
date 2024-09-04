@@ -30,6 +30,10 @@ body.error {
         width: 100%;
         page-break-inside: avoid;
     }
+
+    table {
+        margin-bottom: 1em;
+    }
 }
 
 @media screen {
