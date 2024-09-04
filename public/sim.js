@@ -646,8 +646,10 @@ function generateTable(tableArray) {
         extraTable.appendChild(row);
     }
 
+    const extraDiv = document.createElement('div');
+    extraDiv.appendChild(extraTable);
     // Append the extra table to the outer container
-    outerContainer.appendChild(extraTable);
+    outerContainer.appendChild(extraDiv);
 
     const innerContainer = document.createElement('div');
     innerContainer.classList.add("result");
