@@ -377,12 +377,19 @@ const Instructions = {
     179: {asm: ["FMOV.S", "FRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fm_at_r0n, writes: none },
     180: {asm: ["FLDS", "FRm","FPUL"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fm, writes: fpul },
     181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fpul, writes: fn },
-
+    //182 FABS FRn LS 1 0 #1 — — —
+    182: {asm: ["FABS", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
     183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
 
-    
+    // 184 FCMP/EQ FRm,FRn FE 1 2/4 #36 — — —
+    184: {asm: ["FCMP/EQ", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
+    //185 FCMP/GT FRm,FRn FE 1 2/4 #36 — — —
+    185: {asm: ["FCMP/GT", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
+
     189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     
+    // 190 FNEG FRn LS 1 0 #1 — — —
+    190: {asm: ["FNEG", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
     // 191 FSQRT FRn FE 1 11/12 #37 F3 2 9 F1 10 1
     191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 /*11/12*/, pattern: Patterns[137], reads: fn, writes: fn },
 
@@ -390,6 +397,9 @@ const Instructions = {
     
     // 231 FIPR FVm,FVn FE 1 4/5 #42 F1 3 1
     231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
+
+    // special, not in manual
+    191: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fn, writes: fn },
 };
 
 
