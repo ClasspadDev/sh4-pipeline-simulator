@@ -549,6 +549,9 @@ function makeSeq(insn, program_order) {
         seq.kick = function() {
             return this.pattern[this.step] >> Flags.KShift;
         }
+        seq.next_kick = function() {
+            return this.pattern[this.step + 1] >> Flags.KShift;
+        }
         seq.next_stage = function() {
             let rv = this.pattern[this.step + 1];
             return rv ? rv & Stage.Mask : rv;
@@ -919,7 +922,7 @@ function do_sim() {
             let current_stage_name = StageNames[current_stage];
             let next_stage_name = StageNames[next_stage];
 
-            const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage);
+            const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage && x.program_order < seq.program_order);
 
             if (in_next_stage.length == 2 ) {
                 relevant_seqs = in_next_stage;
@@ -946,6 +949,10 @@ function do_sim() {
                 last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.insn.program_order}"]`]).flat());
                 seq.stall = true;
             } else {
+                if (seq.next_kick()) {
+                    let kick_seq = getSeq(seq.insn, seq.next_kick());
+                    // TODO: check if kick_seq can be scheduled
+                }
                 seq.stall = false;
                 if (seq.stage_lock()) {
                     stage_lock[seq.stage()] = null;
