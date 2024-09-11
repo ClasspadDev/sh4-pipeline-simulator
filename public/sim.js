@@ -924,6 +924,8 @@ function do_sim() {
 
         let toremove = [];
         let toresult = [];
+        let prevstall = undefined;
+
         for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
             let seq = in_flight[seq_index];
                 
@@ -958,6 +960,11 @@ function do_sim() {
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}^${next_stage_name}`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
                 last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.insn.program_order}"]`]).flat());
                 seq.stall = true;
+            } else if (prevstall) {
+                let relevant_seqs = [prevstall];
+                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}+${next_stage_name}`, explanation: `Previous Instruction Stalled<br/>${prevstall.insn.format()}` };
+                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
+                seq.stall = true;
             } else {
                 if (seq.next_kick()) {
                     let kick_seq = getSeq(seq.insn, seq.next_kick());
@@ -991,6 +998,10 @@ function do_sim() {
                 }
                 
                 last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}`, result_ready: result_ready};
+            }
+            
+            if (!prevstall && seq.stall) {
+                prevstall = seq;
             }
 
             last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
