@@ -217,6 +217,24 @@ function fm() {
     return [this.variant[index_of_part(this.asm, "FRm")]];
 }
 
+
+function dn() {
+    const d_dec = {
+        "DR0": ["FR0", "FR1"],
+        "DR2": ["FR2", "FR3"],
+        "DR4": ["FR4", "FR5"],
+        "DR6": ["FR6", "FR7"],
+        "DR8": ["FR8", "FR9"],
+        "DR10": ["FR10", "FR11"],
+        "DR12": ["FR12", "FR13"],
+        "DR14": ["FR14", "FR15"],
+    };
+    const rv = d_dec[this.variant[index_of_part(this.asm, "DRn")]];
+    if (!rv)
+        throw new Error(`Unknown DRn ${this.variant[index_of_part(this.asm, "DRn")]} in ${this.asm}`);
+    return rv;
+}
+
 function fpul() {
     return ["FPUL"];
 }
@@ -395,11 +413,17 @@ const Instructions = {
 
     192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     
+    // 214 LDS Rm,FPUL LS 1 1 #1 — — —
+    214: {asm: ["LDS", "Rm","FPUL"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: fpul },
+
     // 231 FIPR FVm,FVn FE 1 4/5 #42 F1 3 1
     231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
 
     // special, not in manual
-    191: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fn, writes: fn },
+    256: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fn, writes: fn },
+
+    // special, not in manual
+    257: {asm: ["FSCA", "FPUL", "DRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fpul, writes: dn },
 };
 
 
@@ -458,6 +482,9 @@ function getVariants(str) {
         case "FRm":
         case "FRn":
             return ["FR0", "FR1", "FR2", "FR3", "FR4", "FR5", "FR6", "FR7", "FR8", "FR9", "FR10", "FR11", "FR12", "FR13", "FR14", "FR15"];
+        case "DRm":
+        case "DRn":
+            return ["DR0", "DR2", "DR4", "DR6", "DR8", "DR10", "DR12", "DR14"];
         case "FVm":
         case "FVn":
             return ["FV0", "FV4", "FV8", "FV12"];
