@@ -299,6 +299,9 @@ const Instructions = {
     11: {asm: ["MOV.W", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
     12: {asm: ["MOV.L", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
 
+    //16 MOV.B @(disp,Rm),R0 LS 1 2 #2 — — —
+    16: {asm: ["MOV.B", "@(disp4,Rm)","R0"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: r0 },
+
     //18 MOV.L @(disp,Rm),Rn LS 1 2 #2
     18: {asm: ["MOV.L", "@(disp4,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: rn },
 
@@ -403,6 +406,8 @@ const Instructions = {
     184: {asm: ["FCMP/EQ", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
     //185 FCMP/GT FRm,FRn FE 1 2/4 #36 — — —
     185: {asm: ["FCMP/GT", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
+    //187 FLOAT FPUL,FRn FE 1 3/4 #36 F1 2 2
+    187: {asm: ["FLOAT", "FPUL","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fpul, writes: fn },
 
     189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     
