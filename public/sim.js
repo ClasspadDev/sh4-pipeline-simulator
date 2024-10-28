@@ -299,23 +299,51 @@ const Instructions = {
     11: {asm: ["MOV.W", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
     12: {asm: ["MOV.L", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
 
-    //16 MOV.B @(disp,Rm),R0 LS 1 2 #2 — — —
+    // 13 MOV.B @Rm+,Rn LS 1 1/2 #2 — — —
+    // 14 MOV.W @Rm+,Rn LS 1 1/2 #2 — — —
+    // 15 MOV.L @Rm+,Rn LS 1 1/2 #2 — — —
+
+    // 16 MOV.B @(disp,Rm),R0 LS 1 2 #2
     16: {asm: ["MOV.B", "@(disp4,Rm)","R0"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: r0 },
-
-    //18 MOV.L @(disp,Rm),Rn LS 1 2 #2
+    // 17 MOV.W @(disp,Rm),R0 LS 1 2 #2 — — —
+    // 18 MOV.L @(disp,Rm),Rn LS 1 2 #2
     18: {asm: ["MOV.L", "@(disp4,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: rn },
-
-    //21 MOV.L @(R0,Rm),Rn LS 1 2 #2
+    // 19 MOV.B @(R0,Rm),Rn LS 1 2 #2 — — —
+    // 20 MOV.W @(R0,Rm),Rn LS 1 2 #2 — — —
+    // 21 MOV.L @(R0,Rm),Rn LS 1 2 #2
     21: {asm: ["MOV.L", "@(R0,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: rn },
-
+    // 22 MOV.B @(disp,GBR),R0 LS 1 2 #3 — — —
+    // 23 MOV.W @(disp,GBR),R0 LS 1 2 #3 — — —
+    // 24 MOV.L @(disp,GBR),R0 LS 1 2 #3 — — —
+    // 25 MOV.B Rm,@Rn LS 1 1 #2 — — —
+    // 26 MOV.W Rm,@Rn LS 1 1 #2 — — —
+    // 27 MOV.L Rm,@Rn LS 1 1 #2 — — —
+    // 28 MOV.B Rm,@-Rn LS 1 1/1 #2 — — —
+    // 29 MOV.W Rm,@-Rn LS 1 1/1 #2 — — —
+    // 30 MOV.L Rm,@-Rn LS 1 1/1 #2 — — —
+    // 31 MOV.B R0,@(disp,Rn) LS 1 1 #2 — — —
+    // 32 MOV.W R0,@(disp,Rn) LS 1 1 #2 — — —
     // 33 MOV.L Rm,@(disp,Rn) LS 1 1 #2
     33: {asm: ["MOV.L", "Rm","@(disp4,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm_at_d4rn, writes: none },
-
+    // 34 MOV.B Rm,@(R0,Rn) LS 1 1 #2 — — —
+    // 35 MOV.W Rm,@(R0,Rn) LS 1 1 #2 — — —
     // 36 MOV.L Rm,@(R0,Rn) LS 1 1 #2
     36: {asm: ["MOV.L", "Rm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm_at_r0n, writes: none },
-    // 41 MOVT Rn EX 1 1 #1 — — —
+    // 37 MOV.B R0,@(disp,GBR) LS 1 1 #3 — — —
+    // 38 MOV.W R0,@(disp,GBR) LS 1 1 #3 — — —
+    // 39 MOV.L R0,@(disp,GBR) LS 1 1 #3 — — —
+    // 40 MOVCA.L R0,@Rn LS 1 3–7 #12 MA 4 3–7
+    // 41 MOVT Rn EX 1 1 #1
     41: {asm: ["MOVT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: sr, writes: rn },
+    // 42 OCBI @Rn LS 1 1–2 #10 MA 4 1–2
+    // 43 OCBP @Rn LS 1 1–5 #11 MA 4 1–5
+    // 44 OCBWB @Rn LS 1 1–5 #11 MA 4 1–5
+    // 45 PREF @Rn LS 1 1 #2 — — —
+    // 46 SWAP.B Rm,Rn EX 1 1 #1 — — —
+    // 47 SWAP.W Rm,Rn EX 1 1 #1 — — —
+    // 48 XTRCT Rm,Rn EX 1 1 #1 — — —
 
+    // Fixed point arithmetic instructions
     49: {asm: ["ADD", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
     50: {asm: ["ADD", "#imm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: rn },
     51: {asm: ["ADDC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmnsr, writes: rn },
@@ -332,13 +360,21 @@ const Instructions = {
     62: {asm: ["DIV0S", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr },
     63: {asm: ["DIV0U"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     64: {asm: ["DIV1", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rnsr },
-
+    // 65 DMULS.L Rm,Rn CO 2 4/4 #34 F1 4 2
+    // 66 DMULU.L Rm,Rn CO 2 4/4 #34 F1 4 2
     67: {asm: ["DT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
-
+    // 68 MAC.L @Rm+,@Rn+ CO 2 2/2/4/4 #35 F1 4 2
+    // 69 MAC.W @Rm+,@Rn+ CO 2 2/2/4/4 #35 F1 4 2
+    // 70 MUL.L Rm,Rn CO 2 4/4 #34 F1 4 2
+    // 71 MULS.W Rm,Rn CO 2 4/4 #34 F1 4 2
+    // 72 MULU.W Rm,Rn CO 2 4/4 #34 F1 4 2
     73: {asm: ["NEG", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
-
+    // 74 NEGC Rm,Rn EX 1 1 #1 — — —
     75: {asm: ["SUB", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
+    // 76 SUBC Rm,Rn EX 1 1 #1 — — —
+    // 77 SUBV Rm,Rn EX 1 1 #1 — — —
 
+    // Logical Instructions
     78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
     79: {asm: ["AND", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: r0 },
     80: {asm: ["AND.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: -1, pattern: Patterns[6], reads: r0gbr, writes: none },
@@ -346,13 +382,14 @@ const Instructions = {
     81: {asm: ["NOT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn  },
     82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
     83: {asm: ["OR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: r0  },
-
+    // 84 OR.B #imm,@(R0,GBR) CO 4 4 #6 — — —
+    // 85 TAS.B @Rn CO 5 5 #7 — — —
     86: {asm: ["TST", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr  },
     87: {asm: ["TST", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: sr  },
-
+    // 88 TST.B #imm,@(R0,GBR) CO 3 3 #5 — — —
     89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
     90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: r0  },
-
+    // 91 XOR.B #imm,@(R0,GBR) CO 4 4 #6 — — —
     92: {asm: ["ROTL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
     93: {asm: ["ROTR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
     94: {asm: ["ROTCL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
@@ -370,27 +407,87 @@ const Instructions = {
     106: {asm: ["SHLR8", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
     107: {asm: ["SHLR16", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rn },
 
+    // Branch Instructions
+
     // 108 BF disp BR 1 2 (or 1) #1
     108: {asm: ["BF"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+
+    // 109 BF/S disp BR 1 2 (or 1) #1 — — —
+    // 110 BT disp BR 1 2 (or 1) #1 — — —
+    // 111 BT/S disp BR 1 2 (or 1) #1 — — —
 
     // 112 BRA disp BR 1 2 #1
     112: {asm: ["BRA"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
+    // 113 BRAF Rn CO 2 3 #4 — — —
+    // 114 BSR disp BR 1 2 #14 SX 3 2
+    // 115 BSRF Rn CO 2 3 #24 SX 3 2
+    // 116 JMP @Rn CO 2 3 #4 — — —
+    // 117 JSR @Rn CO 2 3 #24 SX 3 2
+
     // 118 RTS CO 2 3 #4 — — —
     118: {asm: ["RTS"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[4], reads: none, writes: none },
 
+    // System Control Instructions
     119: {asm: ["NOP"], group: Group.MT, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: none },
-
+    // 120 CLRMAC CO 1 3 #28 F1 3 2
     121: {asm: ["CLRS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     122: {asm: ["CLRT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     123: {asm: ["SETS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     124: {asm: ["SETT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
+    // 125 TRAPA #imm CO 7 7 #13 — — —
+    // 126 RTE CO 5 5 #8 — — —
+    // 127 SLEEP CO 4 4 #9 — — —
+    // 128 LDTLB CO 1 1 #2 — — —
+    // 129 LDC Rm,DBR CO 1 3 #14 SX 3 2
+    // 130 LDC Rm,GBR CO 3 3 #15 SX 3 2
+    // 131 LDC Rm,Rp_BANK CO 1 3 #14 SX 3 2
+    // 132 LDC Rm,SR CO 4 4 #16 SX 3 2
+    // 133 LDC Rm,SSR CO 1 3 #14 SX 3 2
+    // 134 LDC Rm,SPC CO 1 3 #14 SX 3 2
+    // 135 LDC Rm,VBR CO 1 3 #14 SX 3 2
+    // 136 LDC.L @Rm+,DBR CO 1 1/3 #17 SX 3 2
+    // 137 LDC.L @Rm+,GBR CO 3 3/3 #18 SX 3 2
+    // 138 LDC.L @Rm+,Rp_BANK CO 1 1/3 #17 SX 3 2
+    // 139 LDC.L @Rm+,SR CO 4 4/4 #19 SX 3 2
+    // 140 LDC.L @Rm+,SSR CO 1 1/3 #17 SX 3 2
+    // 141 LDC.L @Rm+,SPC CO 1 1/3 #17 SX 3 2
+    // 142 LDC.L @Rm+,VBR CO 1 1/3 #17 SX 3 2
+    // 143 LDS Rm,MACH CO 1 3 #28 F1 3 2
+    // 144 LDS Rm,MACL CO 1 3 #28 F1 3 2
+    // 145 LDS Rm,PR CO 2 3 #24 SX 3 2
+    // 146 LDS.L @Rm+,MACH CO 1 1/3 #29 F1 3 2
+    // 147 LDS.L @Rm+,MACL CO 1 1/3 #29 F1 3 2
+    // 148 LDS.L @Rm+,PR CO 2 2/3 #25 SX 3 2
+    // 149 STC DBR,Rn CO 2 2 #20 — — —
+    // 150 STC SGR,Rn CO 3 3 #21 — — —
+    // 151 STC GBR,Rn CO 2 2 #20 — — —
+    // 152 STC Rp_BANK,Rn CO 2 2 #20 — — —
+    // 153 STC SR,Rn CO 2 2 #20 — — —
+    // 154 STC SSR,Rn CO 2 2 #20 — — —
+    // 155 STC SPC,Rn CO 2 2 #20 — — —
+    // 156 STC VBR,Rn CO 2 2 #20 — — —
+    // 157 STC.L DBR,@-Rn CO 2 2/2 #22 — — —
+    // 158 STC.L SGR,@-Rn CO 3 3/3 #23 — — —
+    // 159 STC.L GBR,@-Rn CO 2 2/2 #22 — — —
+    // 160 STC.L Rp_BANK,@-Rn CO 2 2/2 #22 — — —
+    // 161 STC.L SR,@-Rn CO 2 2/2 #22 — — —
+    // 162 STC.L SSR,@-Rn CO 2 2/2 #22 — — —
+    // 163 STC.L SPC,@-Rn CO 2 2/2 #22 — — —
+    // 164 STC.L VBR,@-Rn CO 2 2/2 #22 — — —
+    // 165 STS MACH,Rn CO 1 3 #30 — — —
+    // 166 STS MACL,Rn CO 1 3 #30 — — —
+    // 167 STS PR,Rn CO 2 2 #26 — — —
+    // 168 STS.L MACH,@-Rn CO 1 1/1 #31 — — —
+    // 169 STS.L MACL,@-Rn CO 1 1/1 #31 — — —
+    // 170 STS.L PR,@-Rn CO 2 2/2 #27 — — —
 
-
+    //Single-precision floating-point instructions
     171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
     172: {asm: ["FLDI1", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
     173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fm, writes: fn },
     174: {asm: ["FMOV.S","@Rm","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: fn },
+    // 175 FMOV.S @Rm+,FRn LS 1 1/2 #2 — — —
     // 175: {asm: ["FMOV.S", "@Rm+","FRn"], group: Group.LS, issue: 1, latency: 1/2, pattern: Patterns[2] },
     176: {asm: ["FMOV.S", "@(R0,Rm)","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: fn },
     177: {asm: ["FMOV.S", "FRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fmrn, writes: none },
@@ -406,9 +503,10 @@ const Instructions = {
     184: {asm: ["FCMP/EQ", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
     //185 FCMP/GT FRm,FRn FE 1 2/4 #36 — — —
     185: {asm: ["FCMP/GT", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
-    //187 FLOAT FPUL,FRn FE 1 3/4 #36 F1 2 2
+    // 186 FDIV FRm,FRn FE 1 12/13 #37 F3 2 10 F1 11 1
+    // 187 FLOAT FPUL,FRn FE 1 3/4 #36 F1 2 2
     187: {asm: ["FLOAT", "FPUL","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fpul, writes: fn },
-
+    // 188 FMAC FR0,FRm,FRn FE 1 3/4 #36 — — —
     189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     
     // 190 FNEG FRn LS 1 0 #1 — — —
@@ -417,12 +515,56 @@ const Instructions = {
     191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 /*11/12*/, pattern: Patterns[137], reads: fn, writes: fn },
 
     192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
-    
+    // 193 FTRC FRm,FPUL FE 1 3/4 #36 — — —
+    // 194 FMOV DRm,DRn LS 1 0 #1 — — —
+    // 195 FMOV @Rm,DRn LS 1 2 #2 — — —
+    // 196 FMOV @Rm+,DRn LS 1 1/2 #2 — — —
+    // 197 FMOV @(R0,Rm),DRn LS 1 2 #2 — — —
+    // 198 FMOV DRm,@Rn LS 1 1 #2 — — —
+    // 199 FMOV DRm,@-Rn LS 1 1/1 #2 — — —
+    // 200 FMOV DRm,@(R0,Rn) LS 1 1 #2 — — —
+
+    // Double-precision floating-point instructions
+    // 201 FABS DRn LS 1 0 #1 — — —
+    // 202 FADD DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
+    // 203 FCMP/EQ DRm,DRn CO 2 3/5 #40 F1 2 2
+    // 204 FCMP/GT DRm,DRn CO 2 3/5 #40 F1 2 2
+    // 205 FCNVDS DRm,FPUL FE 1 4/5 #38 F1 2 2
+    // 206 FCNVSD FPUL,DRn FE 1 (3, 4)/5 #38 F1 2 2
+    // 207 FDIV DRm,DRn FE 1 (24, 25)/26 #41 F3 2 21 F1 20 3
+    // 208 FLOAT FPUL,DRn FE 1 (3, 4)/5 #38 F1 2 2
+    // 209 FMUL DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
+    // 210 FNEG DRn LS 1 0 #1 — — —
+    // 211 FSQRT DRn FE 1 (23, 24)/25 #41 F3 2 20 F1 19 3
+    // 212 FSUB DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
+    // 213 FTRC DRm,FPUL FE 1 4/5 #38 F1 2 2
+
+    // FPU system control instructions
     // 214 LDS Rm,FPUL LS 1 1 #1 — — —
     214: {asm: ["LDS", "Rm","FPUL"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: fpul },
+    // 215 LDS Rm,FPSCR CO 1 4 #32 F1 3 3
+    // 216 LDS.L @Rm+,FPUL CO 1 1/2 #2 — — —
+    // 217 LDS.L @Rm+,FPSCR CO 1 1/4 #33 F1 3 3
+    // 218 STS FPUL,Rn LS 1 3 #1 — — —
+    // 219 STS FPSCR,Rn CO 1 3 #1 — — —
+    // 220 STS.L FPUL,@-Rn CO 1 1/1 #2 — — —
+    // 221 STS.L FPSCR,@-Rn CO 1 1/1 #2 — — —
 
+    // Graphics acceleration instructions
+    // 222 FMOV DRm,XDn LS 1 0 #1 — — —
+    // 223 FMOV XDm,DRn LS 1 0 #1 — — —
+    // 224 FMOV XDm,XDn LS 1 0 #1 — — —
+    // 225 FMOV @Rm,XDn LS 1 2 #2 — — —
+    // 226 FMOV @Rm+,XDn LS 1 1/2 #2 — — —
+    // 227 FMOV @(R0,Rm),XDn LS 1 2 #2 — — —
+    // 228 FMOV XDm,@Rn LS 1 1 #2 — — —
+    // 229 FMOV XDm,@-Rm LS 1 1/1 #2 — — —
+    // 230 FMOV XDm,@(R0,Rn) LS 1 1 #2 — — —
     // 231 FIPR FVm,FVn FE 1 4/5 #42 F1 3 1
     231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
+    // 232 FRCHG FE 1 1/4 #36 — — —
+    // 233 FSCHG FE 1 1/4 #36 — — —
+    // 234 FTRV XMTRX,FVn FE 1 (5, 5, 6,7)/8 #43 F0 2 4 F1 3 4
 
     // special, not in manual
     256: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fn, writes: fn },
@@ -528,7 +670,8 @@ for (const index of Object.keys(Instructions)) {
 }
 
 function assemble(lines) {
-    let rv = []
+    let insns = []
+    let rv = [insns]
     let pc = 0;
     let track = 0;
     for (line of lines.split("\n")) {
@@ -536,6 +679,15 @@ function assemble(lines) {
 
         if (no_comments.length) {
             processed = processInsn(no_comments);
+            if (processed[0] == '#') {
+                console.log(`Starting new fragment: ${processed} from ${line}`);
+                insns.tracks = track;
+                insns = [];
+                rv.push(insns);
+                pc = 0;
+                track = 0;
+                continue;
+            }
             if (processed[0] == '.') {
                 console.log(`Skipping directive: ${processed} from ${line}`);
                 continue;
@@ -555,7 +707,7 @@ function assemble(lines) {
                 console.error(`Unknown instruction: ${processed} from ${line}`);
                 return null;
             }
-            rv.push({
+            insns.push({
                 pc: pc, track: track, text: processed, def: def, program_order: -1, seq: [],
                 format: function() {
                     return `${this.pc.toString(16).padStart(8,"0")} ${this.text}`;
@@ -566,7 +718,7 @@ function assemble(lines) {
         }
     }
 
-    rv.tracks = track;
+    insns.tracks = track;
 
     return rv;
 }
@@ -618,8 +770,7 @@ function makeSeq(insn, program_order) {
     return seqs;
 }
 
-function generateTable(tableArray) {
-    const outerContainer = document.querySelector(".result-outer");
+function generateTable(tableArray, outerContainer) {
     // Clear the outer container
     outerContainer.innerHTML = "";
 
@@ -856,8 +1007,8 @@ if (urlParams.has("source")) {
 }
 
 function do_sim() {
-    let insns = assemble(document.querySelector(".src").value)
-    if (!insns) {
+    let insnsM = assemble(document.querySelector(".src").value)
+    if (!insnsM) {
         document.body.classList.add("error")
         return;
     }
@@ -868,232 +1019,241 @@ function do_sim() {
 
     document.body.classList.remove("error")
 
-    let pc = 0;
-    let cycle = 0;
-    let program_order = 0;
-    let in_flight = []
+    document.querySelector(".results").innerHTML = "";
 
-    let table = [];
-    let initial_column = Array.from({length: insns.tracks}, (_, index) => null);
-    for (let i = 0; i < insns.length; i++) {
-        initial_column[insns[i].track] = {
-            id: `${insns[i].pc}`,
-            text: insns[i].format(), 
-            explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` ,
-            pc: insns[i].pc,
-            current: `.row-insn-${insns[i].pc}`
+    for (let insn = 0; insn < insnsM.length; insn++) {
+        insns = insnsM[insn];
+            
+        let pc = 0;
+        let cycle = 0;
+        let program_order = 0;
+        let in_flight = []
+
+        let table = [];
+        let initial_column = Array.from({length: insns.tracks}, (_, index) => null);
+        for (let i = 0; i < insns.length; i++) {
+            initial_column[insns[i].track] = {
+                id: `${insns[i].pc}`,
+                text: insns[i].format(), 
+                explanation:`group: ${insns[i].def.group}, issue: ${insns[i].def.issue}, latency: ${insns[i].def.latency}${insns[i].def.desc ? "<br/>" + insns[i].def.desc : ""}` ,
+                pc: insns[i].pc,
+                current: `.row-insn-${insns[i].pc}`
+            };
+
+            for (let j = 1; j < insns[i].def.pattern.length; j++) {
+                if (!initial_column[insns[i].track + j]) {
+                    initial_column[insns[i].track + j] = deepcopy(initial_column[insns[i].track]);
+                }
+
+                initial_column[insns[i].track + j].screen_hidden_text = true;
+            }
+        }
+
+        initial_column.unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
+        table.push(initial_column);
+
+        let provides = { 
+            "R0":  [],
+            "R1":  [],
+            "R2":  [],
+            "R3":  [],
+            "R4":  [],
+            "R5":  [],
+            "R6":  [],
+            "R7":  [],
+            "R8":  [],
+            "R9":  [],
+            "R10": [],
+            "R11": [],
+            "R12": [],
+            "R13": [],
+            "R14": [],
+            "R15": [],
+
+            "FR0": [],
+            "FR1": [],
+            "FR2": [],
+            "FR3": [],
+            "FR4": [],
+            "FR5": [],
+            "FR6": [],
+            "FR7": [],
+            "FR8": [],
+            "FR9": [],
+            "FR10": [],
+            "FR11": [],
+            "FR12": [],
+            "FR13": [],
+            "FR14": [],
+            "FR15": [],
+
+            "SR": [],
+            "FPUL": [],
+            "GBR": []
         };
 
-        for (let j = 1; j < insns[i].def.pattern.length; j++) {
-            if (!initial_column[insns[i].track + j]) {
-                initial_column[insns[i].track + j] = deepcopy(initial_column[insns[i].track]);
-            }
-
-            initial_column[insns[i].track + j].screen_hidden_text = true;
+        function data_provided_by(provide_seqs, seq) {
+            return provide_seqs.some(x => x.insn != seq.insn && x.program_order < seq.program_order);
         }
-    }
+        let stage_lock = {}
 
-    initial_column.unshift({text: "inst\\cycle", explanation: "Instruction vs Cycle Number"});
-    table.push(initial_column);
-
-    let provides = { 
-        "R0":  [],
-        "R1":  [],
-        "R2":  [],
-        "R3":  [],
-        "R4":  [],
-        "R5":  [],
-        "R6":  [],
-        "R7":  [],
-        "R8":  [],
-        "R9":  [],
-        "R10": [],
-        "R11": [],
-        "R12": [],
-        "R13": [],
-        "R14": [],
-        "R15": [],
-
-        "FR0": [],
-        "FR1": [],
-        "FR2": [],
-        "FR3": [],
-        "FR4": [],
-        "FR5": [],
-        "FR6": [],
-        "FR7": [],
-        "FR8": [],
-        "FR9": [],
-        "FR10": [],
-        "FR11": [],
-        "FR12": [],
-        "FR13": [],
-        "FR14": [],
-        "FR15": [],
-
-        "SR": [],
-        "FPUL": [],
-        "GBR": []
-    };
-
-    function data_provided_by(provide_seqs, seq) {
-        return provide_seqs.some(x => x.insn != seq.insn && x.program_order < seq.program_order);
-    }
-    let stage_lock = {}
-
-    for(;;) {
-        if (in_flight.length == 0 && pc == insns.length || cycle > 1000)
-            break;
-        
-        table.push(Array.from({length: insns.tracks}, (_, index) => ({})));
-        const last_column = table[table.length - 1];
-
-        for (let i = 0; i < insns.length; i++) {
-            for (let j = 0; j < insns[i].def.pattern.length; j++) {
-                last_column[insns[i].track + j].current = `.row-insn-${insns[i].pc}`;
-            }
-        }
-
-        let toremove = [];
-        let toresult = [];
-        let prevstall = undefined;
-
-        for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
-            let seq = in_flight[seq_index];
-                
-            let current_stage = seq.stage();
-            let next_stage = seq.next_stage();
-            let current_stage_name = StageNames[current_stage];
-            let next_stage_name = StageNames[next_stage];
-
-            const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage && x.program_order < seq.program_order);
-
-            if (in_next_stage.length == 2 ) {
-                relevant_seqs = in_next_stage;
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}*${next_stage_name}`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br />")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
-                seq.stall = true;
-            } else if (stage_lock[next_stage] && stage_lock[next_stage] != seq) {
-                let relevant_seqs = [stage_lock[next_stage]];
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}~${next_stage_name}`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
-            } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => x.program_order > seq.program_order || isParallel(x.group, seq.group))) {
-                let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}!${next_stage_name}`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => x.program_order <= seq.program_order && !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
-                seq.stall = true;
-            } else if ( (current_stage != Stage.I || seq.latency == 0) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
-                let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}|${next_stage_name}`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.insn.program_order}"]`]).flat());
-                seq.stall = true;
-            } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
-                let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}^${next_stage_name}`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.insn.program_order}"]`]).flat());
-                seq.stall = true;
-            } else if (prevstall) {
-                let relevant_seqs = [prevstall];
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}+${next_stage_name}`, explanation: `Previous Instruction Stalled<br/>${prevstall.insn.format()}` };
-                last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
-                seq.stall = true;
-            } else {
-                if (seq.next_kick()) {
-                    let kick_seq = getSeq(seq.insn, seq.next_kick());
-                    // TODO: check if kick_seq can be scheduled
-                }
-                seq.stall = false;
-                if (seq.stage_lock()) {
-                    stage_lock[seq.stage()] = null;
-                }
-                let result_ready = undefined;
-                seq.step++;
-                if (seq.generates_result()) {
-                    result_ready = seq.insn.program_order.toString();
-                    toresult.push(seq);
-                }
-                if (seq.stage_lock()) {
-                    stage_lock[seq.stage()] = seq;
-                }
-                if (!seq.next_stage()) {
-                    toremove.push(seq);
-                }
-                if (seq.kick()) {
-                    let kick_seq = getSeq(seq.insn, seq.kick());
-                    if (kick_seq.stage_lock()) {
-                        stage_lock[kick_seq.stage()] = kick_seq;
-                    }
-                    in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
-                    last_column[kick_seq.track] = {id: `step-${kick_seq.track}-${cycle}`, seq: kick_seq, lock: stage_lock[kick_seq.stage()] == kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}${stage_lock[kick_seq.stage()]?`<br/>Stage Lock: ${StageNames[kick_seq.stage()]}`: ""}`};
-                    last_column[kick_seq.track].current = `.row-insn-${kick_seq.insn.pc}`;
-                    seq_index++;
-                }
-                
-                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}`, result_ready: result_ready};
-            }
+        for(;;) {
+            if (in_flight.length == 0 && pc == insns.length || cycle > 1000)
+                break;
             
-            if (!prevstall && seq.stall) {
-                prevstall = seq;
+            table.push(Array.from({length: insns.tracks}, (_, index) => ({})));
+            const last_column = table[table.length - 1];
+
+            for (let i = 0; i < insns.length; i++) {
+                for (let j = 0; j < insns[i].def.pattern.length; j++) {
+                    last_column[insns[i].track + j].current = `.row-insn-${insns[i].pc}`;
+                }
             }
 
-            last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
-        }
+            let toremove = [];
+            let toresult = [];
+            let prevstall = undefined;
 
+            for (let seq_index = 0; seq_index < in_flight.length; seq_index++) {
+                let seq = in_flight[seq_index];
+                    
+                let current_stage = seq.stage();
+                let next_stage = seq.next_stage();
+                let current_stage_name = StageNames[current_stage];
+                let next_stage_name = StageNames[next_stage];
 
-        for (let stage = 0; stage < Stage.Count; stage++) {
-            const in_stage_exec = in_flight.filter(seq => seq.stage() == stage && !seq.stall);
-            if (in_stage_exec.length == 2) {
-                in_stage_exec.forEach(seq => {
-                    last_column.forEach(x => {
-                        if (x && x.seq == seq) {
-                            x.full = true;
-                            x.explanation += `<br/>Fully Utilized`;
-                        }
-                    })
-                });
-            }
-        }
+                const in_next_stage = in_flight.filter(x => x != seq && x.stage() == next_stage && x.program_order < seq.program_order);
 
-        for (seq of toresult) {
-            seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
-        }
-        toresult.length = 0;
-
-        for (seq of toremove) {
-            in_flight = in_flight.filter(e => e !== seq);
-
-            if (in_flight.filter(x => x.insn == seq.insn).length == 0) {
-                seq.writes.forEach(reg => {
-                    if (provides[reg].filter(e => e == seq).length) {
-                        throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
+                if (in_next_stage.length == 2 ) {
+                    relevant_seqs = in_next_stage;
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}*${next_stage_name}`, explanation: `Already two instructions @ Stage ${next_stage_name}<br/> ${in_next_stage.map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br />")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
+                    seq.stall = true;
+                } else if (stage_lock[next_stage] && stage_lock[next_stage] != seq) {
+                    let relevant_seqs = [stage_lock[next_stage]];
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}~${next_stage_name}`, explanation: `Stage Locked: ${next_stage_name}<br/>${relevant_seqs.map(x => `[${x.group}: ${x.insn.format()}]`).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
+                } else if ( (next_stage != Stage.D) &&  !in_next_stage.every(x => x.program_order > seq.program_order || isParallel(x.group, seq.group))) {
+                    let relevant_seqs = in_next_stage.filter(x => !isParallel(x.group, seq.group));
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}!${next_stage_name}`, explanation: `Resource hazard: ${seq.group} @ Stage ${next_stage_name}<br/>${in_next_stage.filter(x => x.program_order <= seq.program_order && !isParallel(x.group, seq.group)).map(x => `[${x.group}: ${x.insn.format()} @ ${StageNames[x.stage()]}]`).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
+                    seq.stall = true;
+                } else if ( (current_stage != Stage.I || seq.latency == 0) && seq.reads.some(reg => data_provided_by(provides[reg], seq))) {
+                    let relevant_seqs = seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, stall:true, text: `${current_stage_name}|${next_stage_name}`, explanation: `Flow Dependency<br/>${seq.reads.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.insn.program_order}"]`]).flat());
+                    seq.stall = true;
+                } else if ( (current_stage != Stage.I) && seq.writes.some(reg => data_provided_by(provides[reg], seq))) {
+                    let relevant_seqs = seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order)).flat(Infinity);
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}^${next_stage_name}`, explanation: `Output Dependency<br/>${seq.writes.map(reg => provides[reg].filter( provides_seq => provides_seq.program_order < seq.program_order).map(provides_seq => `${reg}: ${provides_seq.insn.format()}`)).flat(Infinity).join("<br/>")}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-result-ready="${x.insn.program_order}"]`]).flat());
+                    seq.stall = true;
+                } else if (prevstall) {
+                    let relevant_seqs = [prevstall];
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()]== seq, stall:true, text: `${current_stage_name}+${next_stage_name}`, explanation: `Previous Instruction Stalled<br/>${prevstall.insn.format()}` };
+                    last_column[seq.track].relevant = JSON.stringify(relevant_seqs.map(x => [`[data-insn="${x.insn.pc}"]`, `[data-insn="step-${x.track}-${cycle}"]`]).flat());
+                    seq.stall = true;
+                } else {
+                    if (seq.next_kick()) {
+                        let kick_seq = getSeq(seq.insn, seq.next_kick());
+                        // TODO: check if kick_seq can be scheduled
                     }
-                });
+                    seq.stall = false;
+                    if (seq.stage_lock()) {
+                        stage_lock[seq.stage()] = null;
+                    }
+                    let result_ready = undefined;
+                    seq.step++;
+                    if (seq.generates_result()) {
+                        result_ready = seq.insn.program_order.toString();
+                        toresult.push(seq);
+                    }
+                    if (seq.stage_lock()) {
+                        stage_lock[seq.stage()] = seq;
+                    }
+                    if (!seq.next_stage()) {
+                        toremove.push(seq);
+                    }
+                    if (seq.kick()) {
+                        let kick_seq = getSeq(seq.insn, seq.kick());
+                        if (kick_seq.stage_lock()) {
+                            stage_lock[kick_seq.stage()] = kick_seq;
+                        }
+                        in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
+                        last_column[kick_seq.track] = {id: `step-${kick_seq.track}-${cycle}`, seq: kick_seq, lock: stage_lock[kick_seq.stage()] == kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}${stage_lock[kick_seq.stage()]?`<br/>Stage Lock: ${StageNames[kick_seq.stage()]}`: ""}`};
+                        last_column[kick_seq.track].current = `.row-insn-${kick_seq.insn.pc}`;
+                        seq_index++;
+                    }
+                    
+                    last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}`, result_ready: result_ready};
+                }
+                
+                if (!prevstall && seq.stall) {
+                    prevstall = seq;
+                }
+
+                last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
             }
-        }
-        toremove.length = 0;
 
-        const in_i_stage = in_flight.filter(seq => seq.stage() == Stage.I);
 
-        for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
-            let insn = insns[pc++];
-            insn.program_order = program_order;
-            insn.seq = makeSeq(insn, program_order);
-            program_order += insn.def.pattern.length;
-            let seq = getSeq(insn, 0);
-            in_flight.push(seq);
-            if (insn.def.result_seq !== -1) {
-                let result_seq = getSeq(insn, insn.def.result_seq, program_order);
-                result_seq.writes.forEach(reg => provides[reg].push(result_seq));
+            for (let stage = 0; stage < Stage.Count; stage++) {
+                const in_stage_exec = in_flight.filter(seq => seq.stage() == stage && !seq.stall);
+                if (in_stage_exec.length == 2) {
+                    in_stage_exec.forEach(seq => {
+                        last_column.forEach(x => {
+                            if (x && x.seq == seq) {
+                                x.full = true;
+                                x.explanation += `<br/>Fully Utilized`;
+                            }
+                        })
+                    });
+                }
             }
-            last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
-            last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
+
+            for (seq of toresult) {
+                seq.writes.forEach(reg => provides[reg] = provides[reg].filter(e => e !== seq));
+            }
+            toresult.length = 0;
+
+            for (seq of toremove) {
+                in_flight = in_flight.filter(e => e !== seq);
+
+                if (in_flight.filter(x => x.insn == seq.insn).length == 0) {
+                    seq.writes.forEach(reg => {
+                        if (provides[reg].filter(e => e == seq).length) {
+                            throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
+                        }
+                    });
+                }
+            }
+            toremove.length = 0;
+
+            const in_i_stage = in_flight.filter(seq => seq.stage() == Stage.I);
+
+            for (let pipe = 0; pipe < 2-in_i_stage.length && pc != insns.length; pipe++) {
+                let insn = insns[pc++];
+                insn.program_order = program_order;
+                insn.seq = makeSeq(insn, program_order);
+                program_order += insn.def.pattern.length;
+                let seq = getSeq(insn, 0);
+                in_flight.push(seq);
+                if (insn.def.result_seq !== -1) {
+                    let result_seq = getSeq(insn, insn.def.result_seq, program_order);
+                    result_seq.writes.forEach(reg => provides[reg].push(result_seq));
+                }
+                last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, text: StageNames[Stage.I], explanation: `No Stall, Group: ${insn.def.group}`};
+                last_column[seq.track].current = `.row-insn-${seq.insn.pc}`;
+            }
+
+            last_column.unshift({text: cycle.toString(), explanation: "Cycle Number"})
+            cycle++;
         }
 
-        last_column.unshift({text: cycle.toString(), explanation: "Cycle Number"})
-        cycle++;
+        const container_div = document.createElement("div");
+        container_div.classList.add("result-outer");
+        document.querySelector(".results").appendChild(container_div);
+        generateTable(table, container_div);
     }
-
-    generateTable(table);
 
 }
 
@@ -1122,25 +1282,37 @@ document.addEventListener('mousemove', function(event) {
     lastY = event.clientY;
 });
 
+function findParentWithClass(element, className) {
+    while (element && element !== document) {
+        if (element.classList.contains(className)) {
+            return element;
+        }
+        element = element.parentElement;
+    }
+    return null; // Return null if no matching parent is found
+}
+
 document.addEventListener("mouseover", function(e) {
     document.querySelectorAll(".marked").forEach(x => x.classList.remove("marked"));
     document.querySelectorAll(".current").forEach(x => x.classList.remove("current"));
     document.querySelectorAll(".current-cycle").forEach(x => x.classList.remove("current-cycle"));
 
+    const container = findParentWithClass(e.target, "result-outer");
+
     if (e.target.getAttribute("data-relevant")) {
         let relevant_elements = JSON.parse(e.target.getAttribute("data-relevant"));
         for (element of relevant_elements) {
-            document.querySelectorAll(element).forEach(x => x.classList.add("marked"));
+            container.querySelectorAll(element).forEach(x => x.classList.add("marked"));
         }
     }
     if (!document.getElementById("hide-crosshairs").checked) {
         if (e.target.getAttribute("data-current")) {
             let element = e.target.getAttribute("data-current");
-            document.querySelectorAll(element).forEach(x => x.classList.add("current"));
+            container.querySelectorAll(element).forEach(x => x.classList.add("current"));
         }
         if (e.target.getAttribute("data-cycle")) {
             let element = e.target.getAttribute("data-cycle");
-            document.querySelectorAll(`[data-cycle="${element}"]`).forEach(x => x.classList.add("current-cycle"));
+            container.querySelectorAll(`[data-cycle="${element}"]`).forEach(x => x.classList.add("current-cycle"));
         }
     }
 });
