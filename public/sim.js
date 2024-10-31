@@ -153,16 +153,16 @@ const Patterns = {
 
 function index_of_part(asm, part) {
     for (let i = 0; i < asm.length; i++) {
-        if (asm[i] == part || asm[i] == `@${part}`)
+        if (asm[i] == part || asm[i] == `@${part}` || asm[i] == `@${part}+` || asm[i] == `@-${part}`)
             return i;
     }
     throw new Error(`Part ${part} not found in ${asm}`);
 }
 function rm() {
-    return [this.variant[index_of_part(this.asm, "Rm")].replace("@", "")];
+    return [this.variant[index_of_part(this.asm, "Rm")].replace("@", "").replace("+", "")];
 }
 function rn() {
-    return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "")];
+    return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "").replace("-", "")];
 }
 
 function none() {
@@ -300,8 +300,11 @@ const Instructions = {
     12: {asm: ["MOV.L", "@Rm","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: rn },
 
     // 13 MOV.B @Rm+,Rn LS 1 1/2 #2 — — —
+    13: {asm: ["MOV.B", "@Rm+","Rn"], group: Group.LS, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: rmn },
     // 14 MOV.W @Rm+,Rn LS 1 1/2 #2 — — —
+    14: {asm: ["MOV.W", "@Rm+","Rn"], group: Group.LS, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: rmn },
     // 15 MOV.L @Rm+,Rn LS 1 1/2 #2 — — —
+    15: {asm: ["MOV.L", "@Rm+","Rn"], group: Group.LS, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: rmn },
 
     // 16 MOV.B @(disp,Rm),R0 LS 1 2 #2
     16: {asm: ["MOV.B", "@(disp4,Rm)","R0"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: r0 },
@@ -319,8 +322,11 @@ const Instructions = {
     // 26 MOV.W Rm,@Rn LS 1 1 #2 — — —
     // 27 MOV.L Rm,@Rn LS 1 1 #2 — — —
     // 28 MOV.B Rm,@-Rn LS 1 1/1 #2 — — —
+    28: {asm: ["MOV.B", "Rm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rmn, writes: rn },
     // 29 MOV.W Rm,@-Rn LS 1 1/1 #2 — — —
+    29: {asm: ["MOV.W", "Rm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rmn, writes: rn },
     // 30 MOV.L Rm,@-Rn LS 1 1/1 #2 — — —
+    30: {asm: ["MOV.L", "Rm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rmn, writes: rn },
     // 31 MOV.B R0,@(disp,Rn) LS 1 1 #2 — — —
     // 32 MOV.W R0,@(disp,Rn) LS 1 1 #2 — — —
     // 33 MOV.L Rm,@(disp,Rn) LS 1 1 #2
@@ -599,6 +605,10 @@ for (const def of Object.values(Instructions)) {
         def.result_seq = -1;
         continue;
     }
+    if (def.latency instanceof Array) {
+        // TODO: support multiple latency values
+        def.latency = Math.max(...def.latency);
+    }
     if (def.pattern.length == 1) {
         def.pattern = deepcopy(def.pattern);
         if (1 + def.latency >= def.pattern[0].length) {
@@ -638,6 +648,10 @@ function getVariants(str) {
         case "@Rm":
         case "@Rn":
             return ["@R0", "@R1", "@R2", "@R3", "@R4", "@R5", "@R6", "@R7", "@R8", "@R9", "@R10", "@R11", "@R12", "@R13", "@R14", "@R15"];
+        case "@Rm+":
+            return ["@R0+", "@R1+", "@R2+", "@R3+", "@R4+", "@R5+", "@R6+", "@R7+", "@R8+", "@R9+", "@R10+", "@R11+", "@R12+", "@R13+", "@R14+", "@R15+"];
+        case "@-Rn":
+            return ["@-R0", "@-R1", "@-R2", "@-R3", "@-R4", "@-R5", "@-R6", "@-R7", "@-R8", "@-R9", "@-R10", "@-R11", "@-R12", "@-R13", "@-R14", "@-R15"];
         case "#imm":
             return Array.from({ length: 384 }, (_, index) => `#${index-128}`);
         case "@(disp,PC)":
