@@ -79,20 +79,20 @@ const Patterns = {
 
     // JMP, RTS, BRAF: 2 issue cycles
     4: [
-        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S | Flags.R],
+        [Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S | Flags.R],
         [Stage.D | Flags.L, Stage.EX, Stage.NA, Stage.S]
     ],
 
     // TST.B: 3 issue cycles
     5: [
-        [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
         [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
         [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S]
     ],
 
     // AND.B, OR.B, XOR.B: 4 issue cycles
     6: [
-        [Stage.I, Stage.D, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1), Stage.MA, Stage.S],
         [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
         [Stage.D | Flags.L, Stage.SX | Flags.Kick(3), Stage.NA, Stage.S],
         [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S],
@@ -100,7 +100,7 @@ const Patterns = {
 
     // TAS.B: 5 issue cycles
     7: [
-        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
+        [Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S | Flags.R],
         [Stage.D | Flags.L, Stage.EX | Flags.Kick(2), Stage.NA, Stage.S],
         [Stage.D | Flags.L, Stage.EX | Flags.Kick(3), Stage.NA, Stage.S],
         [Stage.D | Flags.L, Stage.EX | Flags.Kick(4), Stage.NA, Stage.S],
@@ -383,7 +383,9 @@ const Instructions = {
     82: {asm: ["OR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
     83: {asm: ["OR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: r0  },
     // 84 OR.B #imm,@(R0,GBR) CO 4 4 #6 — — —
+    84: {asm: ["OR.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: -1, pattern: Patterns[6], reads: r0gbr, writes: none },
     // 85 TAS.B @Rn CO 5 5 #7 — — —
+    85: {asm: ["TAS", "@Rn"], group: Group.CO, issue: 5, latency: 5, pattern: Patterns[7], reads: rn, writes: sr  },
     86: {asm: ["TST", "Rm","Rn"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: sr  },
     87: {asm: ["TST", "#imm","R0"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: sr  },
     // 88 TST.B #imm,@(R0,GBR) CO 3 3 #5 — — —
@@ -573,8 +575,25 @@ const Instructions = {
     257: {asm: ["FSCA", "FPUL", "DRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fpul, writes: dn },
 };
 
+// validate issue
+for (const def of Object.values(Instructions)) {
+    if (def.issue != 1) {
+        if (!def.pattern[0][1] & Flags.L) {
+            throw new Error(`Instruction ${def.asm.join(" ")} has issue > 1 but no lock flag`);
+        }
 
+        if (def.issue < def.pattern.length) {
+            throw new Error(`Instruction ${def.asm.join(" ")} has issue < pattern length`);
+        }
+        for (let i = 1; i < def.issue; i++) {
+            if (!def.pattern[i][0] & Flags.L) {
+                throw new Error(`Instruction ${def.asm.join(" ")} has lock flag in pattern ${i}`);
+            }
+        }
+    }
+}
 
+// validate latency and generate patterns
 for (const def of Object.values(Instructions)) {
     if (def.latency == -1) {
         def.result_seq = -1;
