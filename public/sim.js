@@ -1024,7 +1024,7 @@ function do_sim() {
     let urlParams = new URLSearchParams(window.location.search);
     let base64string = btoa(binaryString);
 
-    if (urlParams.has("source") && urlParams.get("source") != base64string) {
+    if (!urlParams.has("source") || urlParams.get("source") != base64string) {
         window.history.replaceState({}, '', `${currentUrl.pathname}?source=${encodeURIComponent(base64string)}`);
     }
 
