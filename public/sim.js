@@ -680,12 +680,21 @@ function assemble(lines) {
         if (no_comments.length) {
             processed = processInsn(no_comments);
             if (processed[0] == '#') {
-                console.log(`Starting new fragment: ${processed} from ${line}`);
-                insns.tracks = track;
-                insns = [];
-                rv.push(insns);
-                pc = 0;
-                track = 0;
+                if (insns.length != 0) {
+                    console.log(`Starting new fragment: ${processed} from ${line}`);
+                    insns.tracks = track;
+                    insns = [];
+                    rv.push(insns);
+                    pc = 0;
+                    track = 0;
+                }
+                if (processed.startsWith("##")) {
+                    insns.subtitle = processed.substring(2).trim();
+                    console.log("Attaching subtitle: " + insns.subtitle);
+                } else if (processed.startsWith("#")) {
+                    insns.title = processed.substring(1).trim();
+                    console.log("Attaching title: " + insns.title);
+                }
                 continue;
             }
             if (processed[0] == '.') {
@@ -771,9 +780,6 @@ function makeSeq(insn, program_order) {
 }
 
 function generateTable(tableArray, outerContainer) {
-    // Clear the outer container
-    outerContainer.innerHTML = "";
-
     // Determine the number of rows by finding the length of the first column
     const numRows = tableArray[0].length;
 
@@ -1015,7 +1021,12 @@ function do_sim() {
     let data = pako.deflate(new TextEncoder().encode(document.querySelector(".src").value));
     let currentUrl = new URL(window.location.href);
     let binaryString = Array.from(data).map(byte => String.fromCharCode(byte)).join('');
-    window.history.replaceState({}, '', `${currentUrl.pathname}?source=${encodeURIComponent(btoa(binaryString))}`);
+    let urlParams = new URLSearchParams(window.location.search);
+    let base64string = btoa(binaryString);
+
+    if (urlParams.has("source") && urlParams.get("source") != base64string) {
+        window.history.replaceState({}, '', `${currentUrl.pathname}?source=${encodeURIComponent(base64string)}`);
+    }
 
     document.body.classList.remove("error")
 
@@ -1249,6 +1260,23 @@ function do_sim() {
             cycle++;
         }
 
+        if (insns.title) {
+            const title = document.createElement("h2");
+            title.textContent = insns.title;
+            if (!insns.subtitle) {
+                title.innerHTML += ` <button onclick="copy_url(event, 'block-${insn}');" class="copy-link tooltip"><span class="tooltiptext">Copied!</span>🔗</button>`;
+                title.id = `block-${insn}`;
+            }
+            document.querySelector(".results").appendChild(title);
+        }
+        if (insns.subtitle) {
+            const subtitle = document.createElement("h3");
+            subtitle.textContent = insns.subtitle;
+            subtitle.innerHTML += ` <button onclick="copy_url(event, 'block-${insn}');" class="copy-link tooltip"><span class="tooltiptext">Copied!</span>🔗</button>`;
+            subtitle.id = `block-${insn}`;
+            document.querySelector(".results").appendChild(subtitle);
+        }
+
         const container_div = document.createElement("div");
         container_div.classList.add("result-outer");
         document.querySelector(".results").appendChild(container_div);
@@ -1317,7 +1345,8 @@ document.addEventListener("mouseover", function(e) {
     }
 });
 
-function copy_url(e) {
+function copy_url(e, hash) {
+    window.location.hash = hash?hash:"";
     navigator.clipboard.writeText(window.location.href);
     e.target.classList.add("copied");
     setTimeout(() => {

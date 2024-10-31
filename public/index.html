@@ -22,27 +22,111 @@
         </div>
 
         <textarea class="src" oninput="do_sim();">
-            and.b #0, @(r0,gbr)
-            and.b #0, @(r0,gbr)
-            MOV.L	 @R1,R1
-            ADD	 R0,R1
-            mov	r5,r1
-            add	r1,r1
-            add	r1,r5
-            mov	r5,r0
-            shll2	r0
-            shll2	r0
-            sub	r5,r0
-            add r0, r0
-            MOV R0, R0
-            mov #0, r0 ; this is a test
-            add r0, r0
-            mov.l @r0, r0
-            add r0, r0
-            MOV R0, R0
-            mov #0, r0 ; this is a test
-            add r0, r0
-            mov.l @r0, r0
+; Basic examples from the manual (not all of these are simulated correctly). Unsupported instructions are commented out
+; # means a section split
+
+
+# Serial execution: non-parallel-executable instructions
+
+SHAD R0,R1
+ADD R2,R3
+
+
+# Parallel execution: parallel-executable and no dependency
+
+ADD R2,R1
+MOV.L @R4,R5
+
+
+# Issue rate: multi-step instruction
+
+AND.B #1,@(R0,GBR)
+MOV R1,R2
+
+
+# Flow dependency
+
+## Zero-cycle latency
+
+MOV R0,R1
+ADD R2,R1
+
+
+## 1-cycle latency
+
+ADD R2,R1
+MOV.L @R1,R1
+
+## 2-cycle latency / 1 cycle stall 
+nop
+MOV.L @R1,R1
+ADD R0,R1
+
+## 2-cycle latency / 1 cycle increase
+nop
+MOV.L @R1,R1
+SHAD R1,R2
+
+## 4-cycle latency for FPSCR
+
+FADD FR1,FR2
+nop
+; STS FPUL,R1
+nop
+; STS FPSCR,R2
+
+## 7-cycle latency for lower FR, 8-cycle latency for upper FR
+
+; FADD DR0,DR2
+FMOV FR3,FR5
+FMOV FR2,FR4
+
+## 3-cycle latency for lower FR / 4-cycle latency for upper FR
+; FLOAT FPUL,DR0
+; FMOV.S FR1,@-R15
+
+## Zero-cycle latency / 3-cycle increase
+FLDI1 FR3
+FIPR FV0,FV4
+
+## 2-cycle latency / 1-cycle increase
+; FMOV @R1,XD14
+; FTRV XMTRX,FV0
+
+## Effectively 1-cycle latency for consecutive LDS/FLOAT instructions
+;LDS R0,FPUL
+;FLOAT FPUL,FR0
+;LDS R1,FPUL
+;FLOAT FPUL,R1
+
+## Effectively 1-cycle latency for consecutive FTRC/STS instructions
+
+;FTRC FR0,FPUL
+;STS FPUL,R0
+;FTRC FR1,FPUL
+;STS FPUL,R1
+
+# Output dependency
+
+## 11-cycle latency / WaW cycles -2 / The registers are written-back in program order.
+
+FSQRT FR4
+FMOV FR0,FR4
+
+## 7-cycle latency for lower FR / 8-cycle latency for upper FR / WaW in program order
+
+; FADD DR0,DR2
+FMOV FR0,FR3
+
+# Anti-flow dependency
+
+## 1 stall cycle
+; FTRV XMTRX,FV0
+; FMOV @R1,XD0
+
+## 2 stall cycles
+; FADD DR0,DR2
+FMOV FR4,FR1
         </textarea>
     </div>
     <div class="options">

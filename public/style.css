@@ -68,6 +68,7 @@ body.error {
     .result {
         overflow-x: scroll;
         overflow-y: hidden;
+        padding-right: 4em;
     }
 }
 
