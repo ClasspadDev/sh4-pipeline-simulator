@@ -142,6 +142,16 @@ const Patterns = {
         [Stage.I, Stage.D, Stage.F0, Stage.F1, Stage.F2, Stage.FS]
     ],
 
+    // 43.  FTRV: 1 issue cycle
+    43: [
+        [Stage.I, Stage.D, Stage.F0 | Flags.Kick(1), Stage.F1, Stage.F2, Stage.FS],
+        [Stage.D, Stage.F0 | Flags.Kick(2), Stage.F1, Stage.F2, Stage.FS],
+        [Stage.D, Stage.F0 | Flags.Kick(3), Stage.F1, Stage.F2, Stage.FS],
+        [Stage.D, Stage.F0, Stage.F1, Stage.F2, Stage.FS | Flags.R],
+
+    ],
+
+
     // Custom: fsqrt fr
     137: [
         [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
@@ -257,6 +267,11 @@ function fmrn() {
 }
 function fm_at_r0n() {
     return [this.variant[index_of_part(this.asm, "FRm")], "R0", this.variant[index_of_part(this.asm, "@(R0,Rn)")].match(/@\(R0,([^)]*)\)/)[1]];
+}
+
+function xmtrx() {
+    return ["XF0", "XF1", "XF2", "XF3", "XF4", "XF5", "XF6", "XF7", 
+            "XF8", "XF9", "XF10", "XF11", "XF12", "XF13", "XF14", "XF15"];
 }
 
 function fvm() {
@@ -576,6 +591,7 @@ const Instructions = {
     // 232 FRCHG FE 1 1/4 #36 — — —
     // 233 FSCHG FE 1 1/4 #36 — — —
     // 234 FTRV XMTRX,FVn FE 1 (5, 5, 6,7)/8 #43 F0 2 4 F1 3 4
+    234: {asm: ["FTRV", "XMTRX","FVn"], group: Group.FE, issue: 1, latency: [5, 5, 6,7, 8], pattern: Patterns[43], reads: xmtrx, writes: [fvn, "FPSCR"] },
 
     // special, not in manual
     256: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fn, writes: fn },
@@ -584,6 +600,30 @@ const Instructions = {
     257: {asm: ["FSCA", "FPUL", "DRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fpul, writes: dn },
 };
 
+function resolve_read_write(rw) {
+    if (rw instanceof Array) {
+        return function() {
+            let res = [];
+            for (const r of rw) {
+                res = res.concat(resolve_read_write(r).apply(this));
+            }
+            return res;
+        }
+    } else if (typeof rw == 'string' || rw instanceof String) {
+        return () => {
+            return rw;
+        }
+    } else if (rw instanceof Function) {
+        return rw;
+    } else {
+        throw new Error(`Invalid read/write specifier ${rw}`);
+    }
+}
+// Merge read/write arrays
+for (const def of Object.values(Instructions)) {
+    def.reads = resolve_read_write(def.reads);
+    def.writes = resolve_read_write(def.writes);
+}
 // validate issue
 for (const def of Object.values(Instructions)) {
     if (def.issue != 1) {
@@ -1134,9 +1174,31 @@ function do_sim() {
             "FR14": [],
             "FR15": [],
 
+            "XF0": [],
+            "XF1": [],
+            "XF2": [],
+            "XF3": [],
+            "XF4": [],
+            "XF5": [],
+            "XF6": [],
+            "XF7": [],
+            "XF8": [],
+            "XF9": [],
+            "XF10": [],
+            "XF11": [],
+            "XF12": [],
+            "XF13": [],
+            "XF14": [],
+            "XF15": [],
+
             "SR": [],
             "FPUL": [],
-            "GBR": []
+            "GBR": [],
+            "VBR": [],
+            "MACH": [],
+            "MACL": [],
+            "PR": [],
+            "FPSCR": [],
         };
 
         function data_provided_by(provide_seqs, seq) {
