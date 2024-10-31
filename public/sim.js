@@ -309,10 +309,13 @@ const Instructions = {
     // 16 MOV.B @(disp,Rm),R0 LS 1 2 #2
     16: {asm: ["MOV.B", "@(disp4,Rm)","R0"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: r0 },
     // 17 MOV.W @(disp,Rm),R0 LS 1 2 #2 — — —
+    17: {asm: ["MOV.W", "@(disp4,Rm)","R0"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: r0 },
     // 18 MOV.L @(disp,Rm),Rn LS 1 2 #2
     18: {asm: ["MOV.L", "@(disp4,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_d4rm, writes: rn },
     // 19 MOV.B @(R0,Rm),Rn LS 1 2 #2 — — —
+    19: {asm: ["MOV.B", "@(R0,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: rn },
     // 20 MOV.W @(R0,Rm),Rn LS 1 2 #2 — — —
+    20: {asm: ["MOV.W", "@(R0,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: rn },
     // 21 MOV.L @(R0,Rm),Rn LS 1 2 #2
     21: {asm: ["MOV.L", "@(R0,Rm)","Rn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: rn },
     // 22 MOV.B @(disp,GBR),R0 LS 1 2 #3 — — —
