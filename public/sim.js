@@ -54,6 +54,27 @@ function isParallel(group1, group2) {
         return group1 != group2;
 }
 
+//fdiv: F3 2 10 F1 11 1
+//fsqrt: F3 2 9 F1 10 1
+function pattern_37(f3_locks) {
+    if (f3_locks == 10) {
+        return [
+            [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
+            [Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L | Flags.Kick(2)],
+            [Stage.F1 | Flags.L, Stage.F2, Stage.FS | Flags.R]
+        ];
+    } else if (f3_locks == 9) {
+        return [
+            [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
+            [Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L | Flags.Kick(2)],
+            [Stage.F1 | Flags.L, Stage.F2, Stage.FS | Flags.R]
+        ];
+    } else {
+        throw new Error(`Unknown f3_locks ${f3_locks}`);
+    }
+
+}
+
 const Patterns = {
     // 1-step operation: 1 issue cycle
     // EXT[SU].[BW], MOV, MOV#, MOVA, MOVT, SWAP.[BW], XTRCT, ADD*, CMP*, 
@@ -128,6 +149,8 @@ const Patterns = {
         [Stage.I, Stage.D, Stage.F1, Stage.F2, Stage.FS]
     ],
 
+    // 37 is a special case
+
     39: [
         [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
         [Stage.D, Stage.F1 | Flags.Kick(2), Stage.F2, Stage.FS],
@@ -149,14 +172,6 @@ const Patterns = {
         [Stage.D, Stage.F0 | Flags.Kick(3), Stage.F1, Stage.F2, Stage.FS],
         [Stage.D, Stage.F0, Stage.F1, Stage.F2, Stage.FS | Flags.R],
 
-    ],
-
-
-    // Custom: fsqrt fr
-    137: [
-        [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
-        [Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3, Stage.F3 | Flags.Kick(2)],
-        [Stage.F1, Stage.F2, Stage.FS | Flags.R],
     ],
 
 };
@@ -242,6 +257,57 @@ function dn() {
     const rv = d_dec[this.variant[index_of_part(this.asm, "DRn")]];
     if (!rv)
         throw new Error(`Unknown DRn ${this.variant[index_of_part(this.asm, "DRn")]} in ${this.asm}`);
+    return rv;
+}
+
+function dm() {
+    const d_dec = {
+        "DR0": ["FR0", "FR1"],
+        "DR2": ["FR2", "FR3"],
+        "DR4": ["FR4", "FR5"],
+        "DR6": ["FR6", "FR7"],
+        "DR8": ["FR8", "FR9"],
+        "DR10": ["FR10", "FR11"],
+        "DR12": ["FR12", "FR13"],
+        "DR14": ["FR14", "FR15"],
+    };
+    const rv = d_dec[this.variant[index_of_part(this.asm, "DRm")]];
+    if (!rv)
+        throw new Error(`Unknown DRm ${this.variant[index_of_part(this.asm, "DRm")]} in ${this.asm}`);
+    return rv;
+}
+
+function xdn() {
+    const d_dec = {
+        "XD0": ["XF0", "XF1"],
+        "XD2": ["XF2", "XF3"],
+        "XD4": ["XF4", "XF5"],
+        "XD6": ["XF6", "XF7"],
+        "XD8": ["XF8", "XF9"],
+        "XD10": ["XF10", "XF11"],
+        "XD12": ["XF12", "XF13"],
+        "XD14": ["XF14", "XF15"],
+    };
+    const rv = d_dec[this.variant[index_of_part(this.asm, "XDn")]];
+    if (!rv)
+        throw new Error(`Unknown XDn ${this.variant[index_of_part(this.asm, "XDn")]} in ${this.asm}`);
+    return rv;
+}
+
+function xdm() {
+    const d_dec = {
+        "XD0": ["XF0", "XF1"],
+        "XD2": ["XF2", "XF3"],
+        "XD4": ["XF4", "XF5"],
+        "XD6": ["XF6", "XF7"],
+        "XD8": ["XF8", "XF9"],
+        "XD10": ["XF10", "XF11"],
+        "XD12": ["XF12", "XF13"],
+        "XD14": ["XF14", "XF15"],
+    };
+    const rv = d_dec[this.variant[index_of_part(this.asm, "XDm")]];
+    if (!rv)
+        throw new Error(`Unknown XDm ${this.variant[index_of_part(this.asm, "XDm")]} in ${this.asm}`);
     return rv;
 }
 
@@ -530,6 +596,7 @@ const Instructions = {
     //185 FCMP/GT FRm,FRn FE 1 2/4 #36 — — —
     185: {asm: ["FCMP/GT", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
     // 186 FDIV FRm,FRn FE 1 12/13 #37 F3 2 10 F1 11 1
+    186: {asm: ["FDIV", "FRm","FRn"], group: Group.FE, issue: 1, latency: [12, 13], pattern: pattern_37(10), reads: fnm, writes: [fn, "FPSCR"]},
     // 187 FLOAT FPUL,FRn FE 1 3/4 #36 F1 2 2
     187: {asm: ["FLOAT", "FPUL","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fpul, writes: fn },
     // 188 FMAC FR0,FRm,FRn FE 1 3/4 #36 — — —
@@ -538,17 +605,25 @@ const Instructions = {
     // 190 FNEG FRn LS 1 0 #1 — — —
     190: {asm: ["FNEG", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
     // 191 FSQRT FRn FE 1 11/12 #37 F3 2 9 F1 10 1
-    191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 /*11/12*/, pattern: Patterns[137], reads: fn, writes: fn },
+    191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 /*11/12*/, pattern: pattern_37(9), reads: fn, writes: fn },
 
     192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     // 193 FTRC FRm,FPUL FE 1 3/4 #36 — — —
+    193: {asm: ["FTRC", "FRm","FPUL"], group: Group.FE, issue: 1, latency: 3 /*[3, 4]*/, pattern: Patterns[36], reads: fm, writes: ["FPUL", "FPSCR"] },
     // 194 FMOV DRm,DRn LS 1 0 #1 — — —
+    194: {asm: ["FMOV", "DRm","DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dm, writes: dn },
     // 195 FMOV @Rm,DRn LS 1 2 #2 — — —
+    195: {asm: ["FMOV", "@Rm","DRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: dn },
     // 196 FMOV @Rm+,DRn LS 1 1/2 #2 — — —
+    196: {asm: ["FMOV", "@Rm+","DRn"], group: Group.LS, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: [rm, dn] },
     // 197 FMOV @(R0,Rm),DRn LS 1 2 #2 — — —
+    197: {asm: ["FMOV", "@(R0,Rm)","DRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: dn },
     // 198 FMOV DRm,@Rn LS 1 1 #2 — — —
+    198: {asm: ["FMOV", "DRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: [dm, rn], writes: none },
     // 199 FMOV DRm,@-Rn LS 1 1/1 #2 — — —
+    199: {asm: ["FMOV", "DRm","@-Rn"], group: Group.LS, issue: 1, latency: [1, 1], pattern: Patterns[2], reads: [dm, rn], writes: rn },
     // 200 FMOV DRm,@(R0,Rn) LS 1 1 #2 — — —
+    200: {asm: ["FMOV", "DRm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: [dm, at_r0n], writes: none },
 
     // Double-precision floating-point instructions
     // 201 FABS DRn LS 1 0 #1 — — —
@@ -578,14 +653,23 @@ const Instructions = {
 
     // Graphics acceleration instructions
     // 222 FMOV DRm,XDn LS 1 0 #1 — — —
+    222: {asm: ["FMOV", "DRm","XDn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dm, writes: xdn },
     // 223 FMOV XDm,DRn LS 1 0 #1 — — —
+    223: {asm: ["FMOV", "XDm","DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: xdm, writes: dn },
     // 224 FMOV XDm,XDn LS 1 0 #1 — — —
+    224: {asm: ["FMOV", "XDm","XDn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: xdm, writes: xdn },
     // 225 FMOV @Rm,XDn LS 1 2 #2 — — —
+    225: {asm: ["FMOV", "@Rm","XDn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: xdn },
     // 226 FMOV @Rm+,XDn LS 1 1/2 #2 — — —
+    226: {asm: ["FMOV", "@Rm+","XDn"], group: Group.LS, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: [rm, xdn] },
     // 227 FMOV @(R0,Rm),XDn LS 1 2 #2 — — —
+    227: {asm: ["FMOV", "@(R0,Rm)","XDn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: xdn },
     // 228 FMOV XDm,@Rn LS 1 1 #2 — — —
+    228: {asm: ["FMOV", "XDm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: [xdm, rn], writes: none },
     // 229 FMOV XDm,@-Rm LS 1 1/1 #2 — — —
+    229: {asm: ["FMOV", "XDm","@-Rn"], group: Group.LS, issue: 1, latency: [1, 1], pattern: Patterns[2], reads: [xdm, rn], writes: rn },
     // 230 FMOV XDm,@(R0,Rn) LS 1 1 #2 — — —
+    230: {asm: ["FMOV", "XDm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: [xdm, at_r0n], writes: none },
     // 231 FIPR FVm,FVn FE 1 4/5 #42 F1 3 1
     231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
     // 232 FRCHG FE 1 1/4 #36 — — —
@@ -708,6 +792,9 @@ function getVariants(str) {
         case "DRm":
         case "DRn":
             return ["DR0", "DR2", "DR4", "DR6", "DR8", "DR10", "DR12", "DR14"];
+        case "XDm":
+        case "XDn":
+            return ["XD0", "XD2", "XD4", "XD6", "XD8", "XD10", "XD12", "XD14"];
         case "FVm":
         case "FVn":
             return ["FV0", "FV4", "FV8", "FV12"];
