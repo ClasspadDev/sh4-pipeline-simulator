@@ -1,7 +1,8 @@
 const Flags = {
     L: 16, // Lock
-    R: 32, // Result
-    KShift: 6,
+    LP: 32, // Lock Partial (no-compute)
+    R: 64, // Result
+    KShift: 7,
     Kick(x) { return (x << this.KShift); }
 }
 
@@ -18,17 +19,21 @@ const Stage = {
     MA: 10,
     S: 11,
     FS: 12,
-    Count: 13,
+    f1: 13,
+    d: 14,
+    Count: 15,
     Mask: 15
 };
 
 const StageNames = { }
 StageNames[Stage.I] = "I";
 StageNames[Stage.D] = "D";
+StageNames[Stage.d] = "d";
 StageNames[Stage.EX] = "EX";
 StageNames[Stage.SX] = "SX";
 StageNames[Stage.F0] = "F0";
 StageNames[Stage.F1] = "F1";
+StageNames[Stage.f1] = "f1";
 StageNames[Stage.F2] = "F2";
 StageNames[Stage.F3] = "F3";
 StageNames[Stage.NA] = "NA";
@@ -72,7 +77,33 @@ function pattern_37(f3_locks) {
     } else {
         throw new Error(`Unknown f3_locks ${f3_locks}`);
     }
+}
 
+//fdiv: F3 2 21 F1 20 3
+//fsqrt: F3 2 20 F1 19 3
+// Hmm, no FS here?
+function pattern_41(f3_locks) {
+    if (f3_locks == 21) {
+        return [
+            [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
+            [Stage.d | Flags.Kick(2), Stage.F1, Stage.F2],
+            [Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L | Flags.Kick(3), Stage.F3 | Flags.L],
+            [Stage.F1 | Flags.L, Stage.F2 | Flags.Kick(4), Stage.F3],
+            [Stage.F1 | Flags.L, Stage.F2 | Flags.Kick(5), Stage.F3],
+            [Stage.F1 | Flags.L, Stage.F2, Stage.F3 | Flags.R],
+        ];
+    } else if (f3_locks == 20) {
+        return [
+            [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
+            [Stage.d | Flags.Kick(2), Stage.F1, Stage.F2],
+            [Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L, Stage.F3 | Flags.L | Flags.Kick(3), Stage.F3 | Flags.L],
+            [Stage.F1 | Flags.L, Stage.F2 | Flags.Kick(4), Stage.F3],
+            [Stage.F1 | Flags.L, Stage.F2 | Flags.Kick(5), Stage.F3],
+            [Stage.F1 | Flags.L, Stage.F2, Stage.F3 | Flags.R],
+        ];
+    } else {
+        throw new Error(`Unknown f3_locks ${f3_locks}`);
+    }
 }
 
 const Patterns = {
@@ -143,6 +174,184 @@ const Patterns = {
         [ Stage.D, Stage.EX, Stage.NA, Stage.S ]
     ],
 
+    // 10. OCBI: 1 issue cycle
+    10: [
+        
+        [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S | Flags.Kick(1)],
+        [Stage.MA | Flags.LP]
+    ],
+    // 11. OCBP, OCBWB: 1 issue cycle
+    11: [
+        [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S | Flags.Kick(1)],
+        [Stage.MA | Flags.LP, Stage.MA | Flags.LP, Stage.MA | Flags.LP, Stage.MA | Flags.LP],
+    ],
+
+    // 12. MOVCA.L: 1 issue cycle
+    12: [
+        [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S | Flags.Kick(1)],
+        [Stage.MA | Flags.LP, Stage.MA | Flags.LP, Stage.MA | Flags.LP, Stage.MA | Flags.LP, Stage.MA | Flags.LP, Stage.MA | Flags.LP],
+    ],
+
+    // 13. TRAPA: 7 issue cycles
+    13: [
+        [Stage.I, Stage.D | Flags.Kick(1) | Flags.L, Stage.EX, Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.EX | Flags.Kick(2), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.EX | Flags.Kick(3), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.EX | Flags.Kick(4), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.EX | Flags.Kick(5), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.EX | Flags.Kick(6), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.EX, Stage.NA, Stage.S]
+    ],
+
+    // Single stages that are in waterfall have been merged to a single sequence
+
+    // 14. CR definition: 1 issue cycle: LDC to DBR/Rp_BANK/SSR/SPC/VBR, BSR
+    14: [
+        [Stage.I, Stage.D, Stage.EX, Stage.NA | Flags.Kick(1), Stage.S | Flags.R],
+        [Stage.SX | Flags.LP, Stage.SX | Flags.LP]
+    ],
+
+    // 15. LDC to GBR: 3 issue cycles
+    15: [
+        [Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S | Flags.R],
+        [Stage.D | Flags.LP, Stage.SX | Flags.Kick(2) | Flags.LP],
+        [Stage.D | Flags.LP, Stage.SX | Flags.LP],
+    ],
+
+    // 16. LDC to SR: 4 issue cycles
+    16: [
+        [Stage.I, Stage.D | Flags.Kick(1) | Flags.L, Stage.EX, Stage.NA, Stage.S | Flags.R],
+        [Stage.D | Flags.LP, Stage.SX | Flags.Kick(2) | Flags.LP],
+        [Stage.D | Flags.LP, Stage.SX | Flags.Kick(3) | Flags.LP],
+        [Stage.D | Flags.LP, Stage.SX | Flags.LP],
+    ],
+
+    // 17. LDC.L to DBR/Rp_BANK/SSR/SPC/VBR: 1 issue cycle
+    17: [
+        [Stage.I, Stage.D, Stage.EX, Stage.MA | Flags.Kick(1), Stage.S | Flags.R],
+        [Stage.SX | Flags.LP, Stage.SX | Flags.LP]
+    ],
+
+    // 18. LDC.L to GBR: 3 issue cycles
+    18: [
+        [Stage.I, Stage.D | Flags.Kick(1) | Flags.L, Stage.EX, Stage.MA, Stage.S | Flags.R],
+        [Stage.D | Flags.LP, Stage.SX | Flags.Kick(2) | Flags.LP],
+        [Stage.D | Flags.LP, Stage.SX | Flags.LP],
+    ],
+
+    // 19. LDC.L to SR: 4 issue cycles
+    19: [
+        [Stage.I, Stage.D | Flags.Kick(1) | Flags.L, Stage.EX, Stage.MA, Stage.S | Flags.R],
+        [Stage.D | Flags.LP, Stage.SX | Flags.Kick(2) | Flags.LP],
+        [Stage.D | Flags.LP, Stage.SX | Flags.Kick(3) | Flags.LP],
+        [Stage.D | Flags.LP, Stage.SX | Flags.LP],
+    ],
+
+    // 20. STC from DBR/GBR/Rp_BANK/SR/SSR/SPC/VBR: 2 issue cycles
+    20: [
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.NA, Stage.S | Flags.R],
+    ],
+
+    // 21. STC.L from SGR: 3 issue cycles
+    // Shouldn't there be an MA stage here? -> This looks like plain STC, not STC.L
+    21: [
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.NA, Stage.S | Flags.R],
+    ],
+
+    // 22. STC.L from DBR/GBR/Rp_BANK/SR/SSR/SPC/VBR: 2 issue cycles
+    22: [
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1) | Flags.R, Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S],
+    ],
+
+    // 23. STC.L from SGR: 3 issue cycles
+    23: [
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1) | Flags.R, Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX | Flags.Kick(2), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S],
+    ],
+    
+    // 24. LDS to PR, JSR, BSRF: 2 issue cycles
+    24: [
+        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S | Flags.R],
+        [Stage.D | Flags.LP, Stage.SX | Flags.LP, Stage.SX | Flags.LP]
+    ],
+
+    // 25. LDS.L to PR: 2 issue cycles
+    25: [
+        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S | Flags.R],
+        [Stage.D | Flags.LP, Stage.SX | Flags.LP, Stage.SX | Flags.LP]
+    ],
+
+    // 26. STS from PR: 2 issue cycles
+    26: [
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.NA, Stage.S | Flags.R],
+    ],
+
+    // 27. STS.L from PR: 2 issue cycles
+    27: [
+        [Stage.I, Stage.D | Flags.L, Stage.SX | Flags.Kick(1), Stage.NA, Stage.S],
+        [Stage.D | Flags.L, Stage.SX, Stage.MA, Stage.S | Flags.R],
+    ],
+
+    // 28. MACH/L definition: 1 issue cycle: CLRMAC, LDS to MACH/L
+    28: [
+        [Stage.I, Stage.D, Stage.EX, Stage.NA | Flags.Kick(1), Stage.S],
+        [Stage.F1 | Flags.LP, Stage.F1, Stage.F2, Stage.FS | Flags.R]
+    ],
+    // 29. LDS.L to MACH/L: 1 issue cycle
+    29: [
+        [Stage.I, Stage.D, Stage.EX, Stage.MA | Flags.Kick(1), Stage.S],
+        [Stage.F1 | Flags.LP, Stage.F1, Stage.F2, Stage.FS | Flags.R]
+    ],
+
+    // 30. STS from MACH/L: 1 issue cycle
+    30: [
+        [Stage.I, Stage.D, Stage.EX, Stage.NA, Stage.S],
+    ],
+
+    // 31. STS.L from MACH/L: 1 issue cycle
+    31: [
+        [Stage.I, Stage.D, Stage.EX, Stage.MA, Stage.S],
+    ],
+
+    // 32. LDS to FPSCR: 1 issue cycle
+    32: [
+        [Stage.I, Stage.D, Stage.EX, Stage.NA | Flags.Kick(1), Stage.S | Flags.R],
+        [Stage.F1 | Flags.LP,Stage.F1 | Flags.LP,Stage.F1 | Flags.LP]
+    ],
+
+    // 33. LDS.L to FPSCR: 1 issue cycle
+    33: [
+        [Stage.I, Stage.D, Stage.EX, Stage.MA | Flags.Kick(1), Stage.S | Flags.R],
+        [Stage.F1 | Flags.LP,Stage.F1 | Flags.LP,Stage.F1 | Flags.LP]
+    ],
+
+    // 34. Fixed-point multiplication: 2 issue cycles: DMULS.L, DMULU.L, MUL.L, MULS.W, MULU.W
+    // TODO: Implement f1 semantics
+    34: [
+        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.NA, Stage.S],
+        [Stage.D | Flags.L | Flags.Kick(2), Stage.EX | Flags.Kick(3), Stage.NA | Flags.Kick(4), Stage.S | Flags.Kick(5)],
+        [Stage.f1],
+        [Stage.f1],
+        [Stage.f1],
+        [Stage.f1, Stage.F2, Stage.FS | Flags.R],
+    ],
+
+    // 35. MAC.W, MAC.L: 2 issue cycles
+    35: [
+        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
+        [Stage.D | Flags.L | Flags.Kick(2), Stage.EX | Flags.Kick(3), Stage.MA | Flags.Kick(4), Stage.S | Flags.Kick(5)],
+        [Stage.f1],
+        [Stage.f1],
+        [Stage.f1],
+        [Stage.f1, Stage.F2, Stage.FS | Flags.R],
+    ],
+
     // Single-precision floating-point computation: 1 issue cycle
     // FCMP/EQ,FCMP/GT, FADD,FLOAT,FMAC,FMUL,FSUB,FTRC,FRCHG,FSCHG
     36: [
@@ -151,14 +360,29 @@ const Patterns = {
 
     // 37 is a special case
 
-    39: [
-        [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1), Stage.F2, Stage.FS],
-        [Stage.D, Stage.F1 | Flags.Kick(2), Stage.F2, Stage.FS],
-        [Stage.D, Stage.F1 | Flags.Kick(3), Stage.F2, Stage.FS],
-        [Stage.D, Stage.F1 | Flags.Kick(4), Stage.F2, Stage.FS],
-        [Stage.D, Stage.F1, Stage.F2 | Flags.Kick(5), Stage.FS],
-        [Stage.F1, Stage.F2, Stage.FS]
+    // 38. Double-precision floating-point computation 1: 1 issue cycle: FCNVDS, FCNVSD, FLOAT, FTRC
+    38: [
+        [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1) | Flags.L, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F1 | Flags.L, Stage.F2, Stage.FS | Flags.R]
     ],
+
+    // 39. Double-precision floating-point computation 2: 1 issue cycle: FADD, FMUL, FSUB
+    39: [
+        [Stage.I, Stage.D, Stage.F1 | Flags.Kick(1) | Flags.L, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F1 | Flags.Kick(2) | Flags.L, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F1 | Flags.Kick(3) | Flags.L, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F1 | Flags.Kick(4) | Flags.L, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F1 | Flags.L, Stage.F2 | Flags.Kick(5), Stage.FS],
+        [Stage.F1 | Flags.L, Stage.F2, Stage.FS | Flags.R]
+    ],
+
+    // 40. Double-precision FCMP: 2 issue cycles: FCMP/EQ,FCMP/GT
+    40: [
+        [Stage.I, Stage.D | Flags.L, Stage.F1 | Flags.Kick(1) | Flags.L, Stage.F2, Stage.FS],
+        [Stage.D | Flags.L, Stage.F1 | Flags.L, Stage.F2, Stage.FS | Flags.R],
+    ],
+    // 41. Double-precision FDIV/SQRT: 1 issue cycle: FDIV, FSQRT
+    // This is special
 
     // 42.  FIPR: 1 issue cycle
     42: [
@@ -168,10 +392,9 @@ const Patterns = {
     // 43.  FTRV: 1 issue cycle
     43: [
         [Stage.I, Stage.D, Stage.F0 | Flags.Kick(1), Stage.F1, Stage.F2, Stage.FS],
-        [Stage.D, Stage.F0 | Flags.Kick(2), Stage.F1, Stage.F2, Stage.FS],
-        [Stage.D, Stage.F0 | Flags.Kick(3), Stage.F1, Stage.F2, Stage.FS],
-        [Stage.D, Stage.F0, Stage.F1, Stage.F2, Stage.FS | Flags.R],
-
+        [Stage.d, Stage.F0 | Flags.Kick(2), Stage.F1, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F0 | Flags.Kick(3), Stage.F1, Stage.F2, Stage.FS],
+        [Stage.d, Stage.F0, Stage.F1, Stage.F2, Stage.FS | Flags.R],
     ],
 
 };
@@ -451,18 +674,28 @@ const Instructions = {
     63: {asm: ["DIV0U"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     64: {asm: ["DIV1", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rnsr },
     // 65 DMULS.L Rm,Rn CO 2 4/4 #34 F1 4 2
+    65: {asm: ["DMULS.L", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACH", "MACL"] },
     // 66 DMULU.L Rm,Rn CO 2 4/4 #34 F1 4 2
+    66: {asm: ["DMULU.L", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACH", "MACL"] },
     67: {asm: ["DT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
     // 68 MAC.L @Rm+,@Rn+ CO 2 2/2/4/4 #35 F1 4 2
+    68: {asm: ["MAC.L", "@Rm+","@Rn+"], group: Group.CO, issue: 2, latency: [2, 2, 4, 4], pattern: Patterns[35], reads: [rm, rn], writes: [rm, rn, "MACH", "MACL"] },
     // 69 MAC.W @Rm+,@Rn+ CO 2 2/2/4/4 #35 F1 4 2
+    69: {asm: ["MAC.W", "@Rm+","@Rn+"], group: Group.CO, issue: 2, latency: [2, 2, 4, 4], pattern: Patterns[35], reads: [rm, rn], writes: [rm, rn, "MACH", "MACL"] },
     // 70 MUL.L Rm,Rn CO 2 4/4 #34 F1 4 2
+    70: {asm: ["MUL.L", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
     // 71 MULS.W Rm,Rn CO 2 4/4 #34 F1 4 2
+    71: {asm: ["MULS.W", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
     // 72 MULU.W Rm,Rn CO 2 4/4 #34 F1 4 2
+    72: {asm: ["MULU.W", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
     73: {asm: ["NEG", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
     // 74 NEGC Rm,Rn EX 1 1 #1 — — —
+    74: {asm: ["NEGC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: [rm, "SR"], writes: [rn, "SR"] },
     75: {asm: ["SUB", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
     // 76 SUBC Rm,Rn EX 1 1 #1 — — —
+    76: {asm: ["SUBC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: [rm, rn, "SR"], writes: [rn, "SR"] },
     // 77 SUBV Rm,Rn EX 1 1 #1 — — —
+    77: {asm: ["SUBV", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: [rm, rn], writes: [rn, "SR"] },
 
     // Logical Instructions
     78: {asm: ["AND", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
@@ -482,6 +715,7 @@ const Instructions = {
     89: {asm: ["XOR", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn  },
     90: {asm: ["XOR", "#imm","R0"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: r0, writes: r0  },
     // 91 XOR.B #imm,@(R0,GBR) CO 4 4 #6 — — —
+    91: {asm: ["XOR.B", "#imm","@(R0,GBR)"], group: Group.CO, issue: 4, latency: -1, pattern: Patterns[6], reads: r0gbr, writes: none },
     92: {asm: ["ROTL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
     93: {asm: ["ROTR", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
     94: {asm: ["ROTCL", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rnsr, writes: rnsr },
@@ -502,20 +736,29 @@ const Instructions = {
     // Branch Instructions
 
     // 108 BF disp BR 1 2 (or 1) #1
-    108: {asm: ["BF"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    108: {asm: ["BF", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
     // 109 BF/S disp BR 1 2 (or 1) #1 — — —
+    109: {asm: ["BF/S", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
     // 110 BT disp BR 1 2 (or 1) #1 — — —
+    110: {asm: ["BT", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
     // 111 BT/S disp BR 1 2 (or 1) #1 — — —
+    111: {asm: ["BT/S", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
     // 112 BRA disp BR 1 2 #1
-    112: {asm: ["BRA"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    112: {asm: ["BRA", "disp12"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
     // 113 BRAF Rn CO 2 3 #4 — — —
+    113: {asm: ["BRAF", "Rn"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[4], reads: rn, writes: none },
     // 114 BSR disp BR 1 2 #14 SX 3 2
+    // TODO: Also support label here
+    114: {asm: ["BSR", "disp12"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[14], reads: none, writes: none },
     // 115 BSRF Rn CO 2 3 #24 SX 3 2
+    115: {asm: ["BSRF", "Rn"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[24], reads: rn, writes: none },
     // 116 JMP @Rn CO 2 3 #4 — — —
+    116: {asm: ["JMP", "@Rn"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[4], reads: rn, writes: none },
     // 117 JSR @Rn CO 2 3 #24 SX 3 2
+    117: {asm: ["JSR", "@Rn"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[24], reads: rn, writes: none },
 
     // 118 RTS CO 2 3 #4 — — —
     118: {asm: ["RTS"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[4], reads: none, writes: none },
@@ -528,51 +771,95 @@ const Instructions = {
     123: {asm: ["SETS"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     124: {asm: ["SETT"], group: Group.MT, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     // 125 TRAPA #imm CO 7 7 #13 — — —
+    125: {asm: ["TRAPA", "#imm"], group: Group.CO, issue: 7, latency: -1, pattern: Patterns[13], reads: none, writes: none },
     // 126 RTE CO 5 5 #8 — — —
+    126: {asm: ["RTE"], group: Group.CO, issue: 5, latency: -1, pattern: Patterns[8], reads: none, writes: none },
     // 127 SLEEP CO 4 4 #9 — — —
+    127: {asm: ["SLEEP"], group: Group.CO, issue: 4, latency: -1, pattern: Patterns[9], reads: none, writes: none },
     // 128 LDTLB CO 1 1 #2 — — —
+    128: {asm: ["LDTLB"], group: Group.CO, issue: 1, latency: -1, pattern: Patterns[2], reads: none, writes: none },
     // 129 LDC Rm,DBR CO 1 3 #14 SX 3 2
+    129: {asm: ["LDC", "Rm","DBR"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[14], reads: rm, writes: "DBR" },
     // 130 LDC Rm,GBR CO 3 3 #15 SX 3 2
-    // 131 LDC Rm,Rp_BANK CO 1 3 #14 SX 3 2
+    130: {asm: ["LDC", "Rm","GBR"], group: Group.CO, issue: 3, latency: 3, pattern: Patterns[15], reads: rm, writes: "GBR" },
+    // 131 LDC Rm,Rn_BANK CO 1 3 #14 SX 3 2
+
     // 132 LDC Rm,SR CO 4 4 #16 SX 3 2
+    132: {asm: ["LDC", "Rm","SR"], group: Group.CO, issue: 4, latency: 4, pattern: Patterns[16], reads: rm, writes: "SR" },
     // 133 LDC Rm,SSR CO 1 3 #14 SX 3 2
+    133: {asm: ["LDC", "Rm","SSR"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[14], reads: rm, writes: "SSR" },
     // 134 LDC Rm,SPC CO 1 3 #14 SX 3 2
+    134: {asm: ["LDC", "Rm","SPC"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[14], reads: rm, writes: "SPC" },
     // 135 LDC Rm,VBR CO 1 3 #14 SX 3 2
+    135: {asm: ["LDC", "Rm","VBR"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[14], reads: rm, writes: "VBR" },
     // 136 LDC.L @Rm+,DBR CO 1 1/3 #17 SX 3 2
+    136: {asm: ["LDC.L", "@Rm+","DBR"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[17], reads: rm, writes: [rm, "DBR"] },
     // 137 LDC.L @Rm+,GBR CO 3 3/3 #18 SX 3 2
-    // 138 LDC.L @Rm+,Rp_BANK CO 1 1/3 #17 SX 3 2
+    137: {asm: ["LDC.L", "@Rm+","GBR"], group: Group.CO, issue: 3, latency: [3, 3], pattern: Patterns[18], reads: rm, writes: [rm, "GBR"] },
+    // 138 LDC.L @Rm+,Rn_BANK CO 1 1/3 #17 SX 3 2
+    
     // 139 LDC.L @Rm+,SR CO 4 4/4 #19 SX 3 2
+    139: {asm: ["LDC.L", "@Rm+","SR"], group: Group.CO, issue: 4, latency: [4, 4], pattern: Patterns[19], reads: rm, writes: [rm, "SR"] },
     // 140 LDC.L @Rm+,SSR CO 1 1/3 #17 SX 3 2
+    140: {asm: ["LDC.L", "@Rm+","SSR"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[17], reads: rm, writes: [rm, "SSR"] },
     // 141 LDC.L @Rm+,SPC CO 1 1/3 #17 SX 3 2
+    141: {asm: ["LDC.L", "@Rm+","SPC"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[17], reads: rm, writes: [rm, "SPC"] },
     // 142 LDC.L @Rm+,VBR CO 1 1/3 #17 SX 3 2
+    142: {asm: ["LDC.L", "@Rm+","VBR"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[17], reads: rm, writes: [rm, "VBR"] },
     // 143 LDS Rm,MACH CO 1 3 #28 F1 3 2
+    143: {asm: ["LDS", "Rm","MACH"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[28], reads: rm, writes: "MACH" },
     // 144 LDS Rm,MACL CO 1 3 #28 F1 3 2
+    144: {asm: ["LDS", "Rm","MACL"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[28], reads: rm, writes: "MACL" },
     // 145 LDS Rm,PR CO 2 3 #24 SX 3 2
+    145: {asm: ["LDS", "Rm","PR"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[24], reads: rm, writes: "PR" },
     // 146 LDS.L @Rm+,MACH CO 1 1/3 #29 F1 3 2
+    146: {asm: ["LDS.L", "@Rm+","MACH"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[29], reads: rm, writes: [rm, "MACH"] },
     // 147 LDS.L @Rm+,MACL CO 1 1/3 #29 F1 3 2
+    147: {asm: ["LDS.L", "@Rm+","MACL"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[29], reads: rm, writes: [rm, "MACL"] },
     // 148 LDS.L @Rm+,PR CO 2 2/3 #25 SX 3 2
+    148: {asm: ["LDS.L", "@Rm+","PR"], group: Group.CO, issue: 2, latency: [2, 3], pattern: Patterns[25], reads: rm, writes: [rm, "PR"] },
     // 149 STC DBR,Rn CO 2 2 #20 — — —
+    149: {asm: ["STC", "DBR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "DBR", writes: rn },
     // 150 STC SGR,Rn CO 3 3 #21 — — —
+    150: {asm: ["STC", "SGR","Rn"], group: Group.CO, issue: 3, latency: 3, pattern: Patterns[21], reads: "SGR", writes: rn },
     // 151 STC GBR,Rn CO 2 2 #20 — — —
-    // 152 STC Rp_BANK,Rn CO 2 2 #20 — — —
+    151: {asm: ["STC", "GBR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "GBR", writes: rn },
+    // 152 STC Rm_BANK,Rn CO 2 2 #20 — — —
     // 153 STC SR,Rn CO 2 2 #20 — — —
+    153: {asm: ["STC", "SR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "SR", writes: rn },
     // 154 STC SSR,Rn CO 2 2 #20 — — —
+    154: {asm: ["STC", "SSR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "SSR", writes: rn },
     // 155 STC SPC,Rn CO 2 2 #20 — — —
+    155: {asm: ["STC", "SPC","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "SPC", writes: rn },
     // 156 STC VBR,Rn CO 2 2 #20 — — —
+    156: {asm: ["STC", "VBR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "VBR", writes: rn },
     // 157 STC.L DBR,@-Rn CO 2 2/2 #22 — — —
+    157: {asm: ["STC.L", "DBR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "DBR", writes: rn },
     // 158 STC.L SGR,@-Rn CO 3 3/3 #23 — — —
+    158: {asm: ["STC.L", "SGR","@-Rn"], group: Group.CO, issue: 3, latency: [3, 3], pattern: Patterns[23], reads: "SGR", writes: rn },
     // 159 STC.L GBR,@-Rn CO 2 2/2 #22 — — —
-    // 160 STC.L Rp_BANK,@-Rn CO 2 2/2 #22 — — —
+    159: {asm: ["STC.L", "GBR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "GBR", writes: rn },
+    // 160 STC.L Rm_BANK,@-Rn CO 2 2/2 #22 — — —
     // 161 STC.L SR,@-Rn CO 2 2/2 #22 — — —
+    161: {asm: ["STC.L", "SR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "SR", writes: rn },
     // 162 STC.L SSR,@-Rn CO 2 2/2 #22 — — —
+    162: {asm: ["STC.L", "SSR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "SSR", writes: rn },
     // 163 STC.L SPC,@-Rn CO 2 2/2 #22 — — —
+    163: {asm: ["STC.L", "SPC","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "SPC", writes: rn },
     // 164 STC.L VBR,@-Rn CO 2 2/2 #22 — — —
+    164: {asm: ["STC.L", "VBR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "VBR", writes: rn },
     // 165 STS MACH,Rn CO 1 3 #30 — — —
+    165: {asm: ["STS", "MACH","Rn"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[30], reads: "MACH", writes: rn },
     // 166 STS MACL,Rn CO 1 3 #30 — — —
+    166: {asm: ["STS", "MACL","Rn"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[30], reads: "MACL", writes: rn },
     // 167 STS PR,Rn CO 2 2 #26 — — —
+    167: {asm: ["STS", "PR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[26], reads: "PR", writes: rn },
     // 168 STS.L MACH,@-Rn CO 1 1/1 #31 — — —
+    168: {asm: ["STS.L", "MACH","@-Rn"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[31], reads: "MACH", writes: rn },
     // 169 STS.L MACL,@-Rn CO 1 1/1 #31 — — —
+    169: {asm: ["STS.L", "MACL","@-Rn"], group: Group.CO, issue: 1, latency: 1, pattern: Patterns[31], reads: "MACL", writes: rn },
     // 170 STS.L PR,@-Rn CO 2 2/2 #27 — — —
+    170: {asm: ["STS.L", "PR","@-Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[27], reads: "PR", writes: rn },
 
     //Single-precision floating-point instructions
     171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
@@ -580,7 +867,7 @@ const Instructions = {
     173: {asm: ["FMOV", "FRm","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fm, writes: fn },
     174: {asm: ["FMOV.S","@Rm","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: rm, writes: fn },
     // 175 FMOV.S @Rm+,FRn LS 1 1/2 #2 — — —
-    // 175: {asm: ["FMOV.S", "@Rm+","FRn"], group: Group.LS, issue: 1, latency: 1/2, pattern: Patterns[2] },
+    175: {asm: ["FMOV.S","@Rm+","FRn"], group: Group.LS, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: [rm, fn] },
     176: {asm: ["FMOV.S", "@(R0,Rm)","FRn"], group: Group.LS, issue: 1, latency: 2, pattern: Patterns[2], reads: at_r0m, writes: fn },
     177: {asm: ["FMOV.S", "FRm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fmrn, writes: none },
     178: {asm: ["FMOV.S", "FRm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: fmrn, writes: rn },
@@ -627,29 +914,49 @@ const Instructions = {
 
     // Double-precision floating-point instructions
     // 201 FABS DRn LS 1 0 #1 — — —
+    201: {asm: ["FABS", "DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dn, writes: dn },
     // 202 FADD DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
+    202: {asm: ["FADD", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8/*, 9*/], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 203 FCMP/EQ DRm,DRn CO 2 3/5 #40 F1 2 2
+    203: {asm: ["FCMP/EQ", "DRm","DRn"], group: Group.CO, issue: 2, latency: [3/*, 5*/], pattern: Patterns[40], reads: [dm, dn], writes: [sr, "FPSCR"] },
     // 204 FCMP/GT DRm,DRn CO 2 3/5 #40 F1 2 2
+    204: {asm: ["FCMP/GT", "DRm","DRn"], group: Group.CO, issue: 2, latency: [3/*, 5*/], pattern: Patterns[40], reads: [dm, dn], writes: [sr, "FPSCR"] },
     // 205 FCNVDS DRm,FPUL FE 1 4/5 #38 F1 2 2
+    205: {asm: ["FCNVDS", "DRm","FPUL"], group: Group.FE, issue: 1, latency: [4/*, 5*/], pattern: Patterns[38], reads: dm, writes: ["FPUL", "FPSCR"] },
     // 206 FCNVSD FPUL,DRn FE 1 (3, 4)/5 #38 F1 2 2
+    206: {asm: ["FCNVSD", "FPUL","DRn"], group: Group.FE, issue: 1, latency: [3, 4/*, 5*/], pattern: Patterns[38], reads: fpul, writes: [dn, "FPSCR"] },
     // 207 FDIV DRm,DRn FE 1 (24, 25)/26 #41 F3 2 21 F1 20 3
+    207: {asm: ["FDIV", "DRm","DRn"], group: Group.FE, issue: 1, latency: [24, 25/*, 26*/], pattern: pattern_41(21), reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 208 FLOAT FPUL,DRn FE 1 (3, 4)/5 #38 F1 2 2
+    208: {asm: ["FLOAT", "FPUL","DRn"], group: Group.FE, issue: 1, latency: [3, 4/*, 5*/], pattern: Patterns[38], reads: fpul, writes: [dn, "FPSCR"] },
     // 209 FMUL DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
+    209: {asm: ["FMUL", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8/*, 9*/], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 210 FNEG DRn LS 1 0 #1 — — —
+    210: {asm: ["FNEG", "DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dn, writes: dn },
     // 211 FSQRT DRn FE 1 (23, 24)/25 #41 F3 2 20 F1 19 3
+    211: {asm: ["FSQRT", "DRn"], group: Group.FE, issue: 1, latency: [23, 24/*, 25*/], pattern: pattern_41(20), reads: dn, writes: [dn, "FPSCR"] },
     // 212 FSUB DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
+    212: {asm: ["FSUB", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8/*, 9*/], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 213 FTRC DRm,FPUL FE 1 4/5 #38 F1 2 2
+    213: {asm: ["FTRC", "DRm","FPUL"], group: Group.FE, issue: 1, latency: [4/*, 5*/], pattern: Patterns[38], reads: dm, writes: ["FPUL", "FPSCR"] },
 
     // FPU system control instructions
     // 214 LDS Rm,FPUL LS 1 1 #1 — — —
     214: {asm: ["LDS", "Rm","FPUL"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: fpul },
     // 215 LDS Rm,FPSCR CO 1 4 #32 F1 3 3
+    215: {asm: ["LDS", "Rm","FPSCR"], group: Group.CO, issue: 1, latency: 3/* should be 4 */, pattern: Patterns[32], reads: rm, writes: "FPSCR" },
     // 216 LDS.L @Rm+,FPUL CO 1 1/2 #2 — — —
+    216: {asm: ["LDS.L", "@Rm+","FPUL"], group: Group.CO, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: [rm, "FPUL"] },
     // 217 LDS.L @Rm+,FPSCR CO 1 1/4 #33 F1 3 3
+    217: {asm: ["LDS.L", "@Rm+","FPSCR"], group: Group.CO, issue: 1, latency: [1/*, 4*/], pattern: Patterns[33], reads: rm, writes: [rm, "FPSCR"] },
     // 218 STS FPUL,Rn LS 1 3 #1 — — —
+    218: {asm: ["STS", "FPUL","Rn"], group: Group.LS, issue: 1, latency: 3, pattern: Patterns[1], reads: fpul, writes: rn },
     // 219 STS FPSCR,Rn CO 1 3 #1 — — —
+    219: {asm: ["STS", "FPSCR","Rn"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[1], reads: "FPSCR", writes: rn },
     // 220 STS.L FPUL,@-Rn CO 1 1/1 #2 — — —
+    220: {asm: ["STS.L", "FPUL","@-Rn"], group: Group.CO, issue: 1, latency: [1, 1], pattern: Patterns[2], reads: fpul, writes: rn },
     // 221 STS.L FPSCR,@-Rn CO 1 1/1 #2 — — —
+    221: {asm: ["STS.L", "FPSCR","@-Rn"], group: Group.CO, issue: 1, latency: [1, 1], pattern: Patterns[2], reads: "FPSCR", writes: rn },
 
     // Graphics acceleration instructions
     // 222 FMOV DRm,XDn LS 1 0 #1 — — —
@@ -695,7 +1002,7 @@ function resolve_read_write(rw) {
         }
     } else if (typeof rw == 'string' || rw instanceof String) {
         return () => {
-            return rw;
+            return [rw];
         }
     } else if (rw instanceof Function) {
         return rw;
@@ -715,8 +1022,8 @@ for (const def of Object.values(Instructions)) {
             throw new Error(`Instruction ${def.asm.join(" ")} has issue > 1 but no lock flag`);
         }
 
-        if (def.issue < def.pattern.length) {
-            throw new Error(`Instruction ${def.asm.join(" ")} has issue < pattern length`);
+        if (def.issue > def.pattern.length) {
+            throw new Error(`Instruction ${def.asm.join(" ")} has issue > pattern length`);
         }
         for (let i = 1; i < def.issue; i++) {
             if (!def.pattern[i][0] & Flags.L) {
@@ -801,6 +1108,10 @@ function getVariants(str) {
         case "@(disp4,Rn)":
         case "@(disp4,Rm)":
             return Array.from({ length: 16*4 }, (_, index) =>  Array.from({ length: 16 }, (_, index2) => `@(${index},R${index2})`)).flat();
+        case "disp8":
+            return Array.from({ length: 256 }, (_, index) => `#${(index-128)*2}`);
+        case "disp12":
+            return Array.from({ length: 4096 }, (_, index) => `#${(index-2048)*2}`);
         default:
             return [str]
     }
@@ -907,7 +1218,7 @@ function makeSeq(insn, program_order) {
             return this.pattern[this.step] & Stage.Mask;
         }
         seq.stage_lock = function() {
-            return this.pattern[this.step] & Flags.L;
+            return this.pattern[this.step] & (Flags.L | Flags.LP);
         }
         seq.generates_result = function() {
             return this.pattern[this.step] & Flags.R;
@@ -1279,7 +1590,10 @@ function do_sim() {
             "XF15": [],
 
             "SR": [],
+            "SSR": [],
+            "SPC": [],
             "FPUL": [],
+            "DBR": [],
             "GBR": [],
             "VBR": [],
             "MACH": [],
@@ -1420,6 +1734,9 @@ function do_sim() {
                             throw new Error(`Instruction finished before all data written ${seq.insn.format()}`);
                         }
                     });
+                }
+                if (seq.stage_lock()) {
+                    stage_lock[seq.stage()] = null;
                 }
             }
             toremove.length = 0;
