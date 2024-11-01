@@ -736,23 +736,23 @@ const Instructions = {
     // Branch Instructions
 
     // 108 BF disp BR 1 2 (or 1) #1
-    108: {asm: ["BF", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    108: {asm: ["BF"/*, "disp8"*/], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
     // 109 BF/S disp BR 1 2 (or 1) #1 — — —
-    109: {asm: ["BF/S", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    109: {asm: ["BF/S"/*, "disp8"*/], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
     // 110 BT disp BR 1 2 (or 1) #1 — — —
-    110: {asm: ["BT", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    110: {asm: ["BT"/*, "disp8"*/], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
     // 111 BT/S disp BR 1 2 (or 1) #1 — — —
-    111: {asm: ["BT/S", "disp8"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    111: {asm: ["BT/S"/*, "disp8"*/], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
     // 112 BRA disp BR 1 2 #1
-    112: {asm: ["BRA", "disp12"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
+    112: {asm: ["BRA"/*, "disp12"*/], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[1], reads: none, writes: none },
 
     // 113 BRAF Rn CO 2 3 #4 — — —
     113: {asm: ["BRAF", "Rn"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[4], reads: rn, writes: none },
     // 114 BSR disp BR 1 2 #14 SX 3 2
     // TODO: Also support label here
-    114: {asm: ["BSR", "disp12"], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[14], reads: none, writes: none },
+    114: {asm: ["BSR"/*, "disp12"*/], group: Group.BR, issue: 1, latency: 2, pattern: Patterns[14], reads: none, writes: none },
     // 115 BSRF Rn CO 2 3 #24 SX 3 2
     115: {asm: ["BSRF", "Rn"], group: Group.CO, issue: 2, latency: 3, pattern: Patterns[24], reads: rn, writes: none },
     // 116 JMP @Rn CO 2 3 #4 — — —
