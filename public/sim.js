@@ -282,7 +282,7 @@ const Patterns = {
 
     // 25. LDS.L to PR: 2 issue cycles
     25: [
-        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S | Flags.R],
+        [Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S | Flags.R],
         [Stage.D | Flags.LP, Stage.SX | Flags.LP, Stage.SX | Flags.LP]
     ],
 
@@ -344,7 +344,7 @@ const Patterns = {
 
     // 35. MAC.W, MAC.L: 2 issue cycles
     35: [
-        [Stage.I, Stage.D, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
+        [Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
         [Stage.D | Flags.L | Flags.Kick(2), Stage.EX | Flags.Kick(3), Stage.MA | Flags.Kick(4), Stage.S | Flags.Kick(5)],
         [Stage.f1],
         [Stage.f1],
@@ -410,7 +410,7 @@ function rm() {
     return [this.variant[index_of_part(this.asm, "Rm")].replace("@", "").replace("+", "")];
 }
 function rn() {
-    return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "").replace("-", "")];
+    return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "").replace("-", "").replace("+", "")];
 }
 
 function none() {
@@ -652,9 +652,13 @@ const Instructions = {
     // 43 OCBP @Rn LS 1 1–5 #11 MA 4 1–5
     // 44 OCBWB @Rn LS 1 1–5 #11 MA 4 1–5
     // 45 PREF @Rn LS 1 1 #2 — — —
+    45: {asm: ["PREF", "@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rn, writes: none },
     // 46 SWAP.B Rm,Rn EX 1 1 #1 — — —
+    46: {asm: ["SWAP.B", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
     // 47 SWAP.W Rm,Rn EX 1 1 #1 — — —
+    47: {asm: ["SWAP.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
     // 48 XTRCT Rm,Rn EX 1 1 #1 — — —
+    48: {asm: ["XTRCT", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
 
     // Fixed point arithmetic instructions
     49: {asm: ["ADD", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rmn, writes: rn },
@@ -887,6 +891,7 @@ const Instructions = {
     // 187 FLOAT FPUL,FRn FE 1 3/4 #36 F1 2 2
     187: {asm: ["FLOAT", "FPUL","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fpul, writes: fn },
     // 188 FMAC FR0,FRm,FRn FE 1 3/4 #36 — — —
+    188: {asm: ["FMAC", "FR0","FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: [fnm, "FR0"], writes: [fn, "FPSCR"] },
     189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
     
     // 190 FNEG FRn LS 1 0 #1 — — —
@@ -1082,6 +1087,7 @@ function getVariants(str) {
         case "@Rm":
         case "@Rn":
             return ["@R0", "@R1", "@R2", "@R3", "@R4", "@R5", "@R6", "@R7", "@R8", "@R9", "@R10", "@R11", "@R12", "@R13", "@R14", "@R15"];
+        case "@Rn+":
         case "@Rm+":
             return ["@R0+", "@R1+", "@R2+", "@R3+", "@R4+", "@R5+", "@R6+", "@R7+", "@R8+", "@R9+", "@R10+", "@R11+", "@R12+", "@R13+", "@R14+", "@R15+"];
         case "@-Rn":
@@ -1684,16 +1690,23 @@ function do_sim() {
                     if (!seq.next_stage()) {
                         toremove.push(seq);
                     }
-                    if (seq.kick()) {
-                        let kick_seq = getSeq(seq.insn, seq.kick());
-                        if (kick_seq.stage_lock()) {
-                            stage_lock[kick_seq.stage()] = kick_seq;
+                    function do_kick(seq) {
+                        if (seq.kick()) {
+                            let kick_seq = getSeq(seq.insn, seq.kick());
+                            if (kick_seq.stage_lock()) {
+                                stage_lock[kick_seq.stage()] = kick_seq;
+                            }
+                            if (!kick_seq.next_stage()) {
+                                toremove.push(kick_seq);
+                            }
+                            in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
+                            seq_index++;
+                            last_column[kick_seq.track] = {id: `step-${kick_seq.track}-${cycle}`, seq: kick_seq, lock: stage_lock[kick_seq.stage()] == kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}${stage_lock[kick_seq.stage()]?`<br/>Stage Lock: ${StageNames[kick_seq.stage()]}`: ""}`};
+                            last_column[kick_seq.track].current = `.row-insn-${kick_seq.insn.pc}`;
+                            do_kick(kick_seq);
                         }
-                        in_flight.splice(in_flight.indexOf(seq)+1, 0, kick_seq);
-                        last_column[kick_seq.track] = {id: `step-${kick_seq.track}-${cycle}`, seq: kick_seq, lock: stage_lock[kick_seq.stage()] == kick_seq, text: StageNames[kick_seq.stage()], explanation: `No Stall, Group: ${kick_seq.group}${stage_lock[kick_seq.stage()]?`<br/>Stage Lock: ${StageNames[kick_seq.stage()]}`: ""}`};
-                        last_column[kick_seq.track].current = `.row-insn-${kick_seq.insn.pc}`;
-                        seq_index++;
                     }
+                    do_kick(seq);
                     
                     last_column[seq.track] = { id: `step-${seq.track}-${cycle}`, seq: seq, lock: stage_lock[seq.stage()] == seq, text: StageNames[next_stage], explanation: `No Stall, Group: ${seq.group}${stage_lock[seq.stage()]?`<br/>Stage Lock: ${StageNames[seq.stage()]}`: ""}`, result_ready: result_ready};
                 }
