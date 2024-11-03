@@ -301,7 +301,7 @@ const Patterns = {
     // 28. MACH/L definition: 1 issue cycle: CLRMAC, LDS to MACH/L
     28: [
         [Stage.I, Stage.D, Stage.EX, Stage.NA | Flags.Kick(1), Stage.S],
-        [Stage.F1 | Flags.LP, Stage.F1, Stage.F2, Stage.FS | Flags.R]
+        [Stage.F1 | Flags.LP, Stage.F1 | Flags.L, Stage.F2, Stage.FS | Flags.R]
     ],
     // 29. LDS.L to MACH/L: 1 issue cycle
     29: [
@@ -409,8 +409,14 @@ function index_of_part(asm, part) {
 function rm() {
     return [this.variant[index_of_part(this.asm, "Rm")].replace("@", "").replace("+", "")];
 }
+function rm_bank() {
+    return [this.variant[index_of_part(this.asm, "Rm_BANK")]];
+}
 function rn() {
     return [this.variant[index_of_part(this.asm, "Rn")].replace("@", "").replace("-", "").replace("+", "")];
+}
+function rn_bank() {
+    return [this.variant[index_of_part(this.asm, "Rn_BANK")]];
 }
 
 function none() {
@@ -787,7 +793,7 @@ const Instructions = {
     // 130 LDC Rm,GBR CO 3 3 #15 SX 3 2
     130: {asm: ["LDC", "Rm","GBR"], group: Group.CO, issue: 3, latency: 3, pattern: Patterns[15], reads: rm, writes: "GBR" },
     // 131 LDC Rm,Rn_BANK CO 1 3 #14 SX 3 2
-
+    130: {asm: ["LDC", "Rm","Rn_BANK"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[14], reads: rm, writes: rn_bank },
     // 132 LDC Rm,SR CO 4 4 #16 SX 3 2
     132: {asm: ["LDC", "Rm","SR"], group: Group.CO, issue: 4, latency: 4, pattern: Patterns[16], reads: rm, writes: "SR" },
     // 133 LDC Rm,SSR CO 1 3 #14 SX 3 2
@@ -801,7 +807,7 @@ const Instructions = {
     // 137 LDC.L @Rm+,GBR CO 3 3/3 #18 SX 3 2
     137: {asm: ["LDC.L", "@Rm+","GBR"], group: Group.CO, issue: 3, latency: [3, 3], pattern: Patterns[18], reads: rm, writes: [rm, "GBR"] },
     // 138 LDC.L @Rm+,Rn_BANK CO 1 1/3 #17 SX 3 2
-    
+    137: {asm: ["LDC.L", "@Rm+","Rn_BANK"], group: Group.CO, issue: 1, latency: [1, 3], pattern: Patterns[17], reads: rm, writes: [rm, rn_bank] },
     // 139 LDC.L @Rm+,SR CO 4 4/4 #19 SX 3 2
     139: {asm: ["LDC.L", "@Rm+","SR"], group: Group.CO, issue: 4, latency: [4, 4], pattern: Patterns[19], reads: rm, writes: [rm, "SR"] },
     // 140 LDC.L @Rm+,SSR CO 1 1/3 #17 SX 3 2
@@ -829,6 +835,7 @@ const Instructions = {
     // 151 STC GBR,Rn CO 2 2 #20 — — —
     151: {asm: ["STC", "GBR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "GBR", writes: rn },
     // 152 STC Rm_BANK,Rn CO 2 2 #20 — — —
+    151: {asm: ["STC", "Rm_BANK","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: rm_bank, writes: rn },
     // 153 STC SR,Rn CO 2 2 #20 — — —
     153: {asm: ["STC", "SR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "SR", writes: rn },
     // 154 STC SSR,Rn CO 2 2 #20 — — —
@@ -844,6 +851,7 @@ const Instructions = {
     // 159 STC.L GBR,@-Rn CO 2 2/2 #22 — — —
     159: {asm: ["STC.L", "GBR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "GBR", writes: rn },
     // 160 STC.L Rm_BANK,@-Rn CO 2 2/2 #22 — — —
+    160: {asm: ["STC.L", "Rm_BANK","@-Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[22], reads: [rm_bank, rn], writes: rn },
     // 161 STC.L SR,@-Rn CO 2 2/2 #22 — — —
     161: {asm: ["STC.L", "SR","@-Rn"], group: Group.CO, issue: 2, latency: [2, 2], pattern: Patterns[22], reads: "SR", writes: rn },
     // 162 STC.L SSR,@-Rn CO 2 2/2 #22 — — —
@@ -1084,6 +1092,9 @@ function getVariants(str) {
         case "Rm":
         case "Rn":
             return ["R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15"];
+        case "Rn_BANK":
+        case "Rm_BANK":
+            return ["R0_BANK", "R1_BANK", "R2_BANK", "R3_BANK", "R4_BANK", "R5_BANK", "R6_BANK", "R7_BANK"];
         case "@Rm":
         case "@Rn":
             return ["@R0", "@R1", "@R2", "@R3", "@R4", "@R5", "@R6", "@R7", "@R8", "@R9", "@R10", "@R11", "@R12", "@R13", "@R14", "@R15"];
@@ -1560,6 +1571,15 @@ function do_sim() {
             "R13": [],
             "R14": [],
             "R15": [],
+
+            "R0_BANK":  [],
+            "R1_BANK":  [],
+            "R2_BANK":  [],
+            "R3_BANK":  [],
+            "R4_BANK":  [],
+            "R5_BANK":  [],
+            "R6_BANK":  [],
+            "R7_BANK":  [],
 
             "FR0": [],
             "FR1": [],
