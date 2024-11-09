@@ -1204,6 +1204,16 @@ function assemble(lines) {
             }
 
             if (!def) {
+                // special handling for data moves w/ labels
+                // note: Label validity is not checked, and neither is distance
+                const op = processed.split(" ")[0];
+                if (op == "mova" || op == "mov.w" || op == "mov.l") {
+                    const with_pc_disp = processed.replace(/ .*,/, " @(0,pc),");
+                    def = instructions_rainbow[with_pc_disp];
+                }
+            }
+
+            if (!def) {
                 console.error(`Unknown instruction: ${processed} from ${line}`);
                 return null;
             }
