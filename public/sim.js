@@ -459,6 +459,10 @@ function rm_at_r0n() {
     return [...rm.apply(this), ...at_r0n.apply(this)];
 }
 
+function r0_at_d4rn() {
+    return ["R0", this.variant[index_of_part(this.asm, "@(disp4,Rn)")].match(/@\([0-9]*,([^)]*)\)/)[1]];
+}
+
 function rm_at_d4rn() {
     return [...rm.apply(this), this.variant[index_of_part(this.asm, "@(disp4,Rn)")].match(/@\([0-9]*,([^)]*)\)/)[1]];
 }
@@ -641,16 +645,23 @@ const Instructions = {
     // 30 MOV.L Rm,@-Rn LS 1 1/1 #2 — — —
     30: {asm: ["MOV.L", "Rm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rmn, writes: rn },
     // 31 MOV.B R0,@(disp,Rn) LS 1 1 #2 — — —
+    31: {asm: ["MOV.B", "R0","@(disp4,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: r0_at_d4rn, writes: none },
     // 32 MOV.W R0,@(disp,Rn) LS 1 1 #2 — — —
+    32: {asm: ["MOV.W", "R0","@(disp4,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: r0_at_d4rn, writes: none },
     // 33 MOV.L Rm,@(disp,Rn) LS 1 1 #2
     33: {asm: ["MOV.L", "Rm","@(disp4,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm_at_d4rn, writes: none },
     // 34 MOV.B Rm,@(R0,Rn) LS 1 1 #2 — — —
+    34: {asm: ["MOV.B", "Rm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm_at_r0n, writes: none },
     // 35 MOV.W Rm,@(R0,Rn) LS 1 1 #2 — — —
+    35: {asm: ["MOV.W", "Rm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm_at_r0n, writes: none },
     // 36 MOV.L Rm,@(R0,Rn) LS 1 1 #2
     36: {asm: ["MOV.L", "Rm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm_at_r0n, writes: none },
     // 37 MOV.B R0,@(disp,GBR) LS 1 1 #3 — — —
+    37: {asm: ["MOV.B", "R0","@(disp,GBR)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[3], reads: () => ["R0", "GBR"], writes: none },
     // 38 MOV.W R0,@(disp,GBR) LS 1 1 #3 — — —
+    38: {asm: ["MOV.W", "R0","@(disp,GBR)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[3], reads: () => ["R0", "GBR"], writes: none },
     // 39 MOV.L R0,@(disp,GBR) LS 1 1 #3 — — —
+    39: {asm: ["MOV.L", "R0","@(disp,GBR)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[3], reads: () => ["R0", "GBR"], writes: none },
     // 40 MOVCA.L R0,@Rn LS 1 3–7 #12 MA 4 3–7
     // 41 MOVT Rn EX 1 1 #1
     41: {asm: ["MOVT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: sr, writes: rn },
@@ -835,7 +846,7 @@ const Instructions = {
     // 151 STC GBR,Rn CO 2 2 #20 — — —
     151: {asm: ["STC", "GBR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "GBR", writes: rn },
     // 152 STC Rm_BANK,Rn CO 2 2 #20 — — —
-    151: {asm: ["STC", "Rm_BANK","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: rm_bank, writes: rn },
+    152: {asm: ["STC", "Rm_BANK","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: rm_bank, writes: rn },
     // 153 STC SR,Rn CO 2 2 #20 — — —
     153: {asm: ["STC", "SR","Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[20], reads: "SR", writes: rn },
     // 154 STC SSR,Rn CO 2 2 #20 — — —
