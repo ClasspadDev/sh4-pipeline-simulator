@@ -636,8 +636,11 @@ const Instructions = {
     // 23 MOV.W @(disp,GBR),R0 LS 1 2 #3 — — —
     // 24 MOV.L @(disp,GBR),R0 LS 1 2 #3 — — —
     // 25 MOV.B Rm,@Rn LS 1 1 #2 — — —
+    25: {asm: ["MOV.B", "Rm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm, writes: rn },
     // 26 MOV.W Rm,@Rn LS 1 1 #2 — — —
+    26: {asm: ["MOV.W", "Rm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm, writes: rn },
     // 27 MOV.L Rm,@Rn LS 1 1 #2 — — —
+    27: {asm: ["MOV.L", "Rm","@Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rm, writes: rn },
     // 28 MOV.B Rm,@-Rn LS 1 1/1 #2 — — —
     28: {asm: ["MOV.B", "Rm","@-Rn"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: rmn, writes: rn },
     // 29 MOV.W Rm,@-Rn LS 1 1/1 #2 — — —
