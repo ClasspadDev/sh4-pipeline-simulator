@@ -9,12 +9,12 @@ const Flags = {
 const Stage = {
     I: 0,
     D: 1,
+    MS: 2,
     EX: 3,
     SX: 4,
-    F0: 5,
-    F1: 6,
-    F2: 7,
-    F3: 8,
+    M1: 5,
+    M2: 6,
+    M3: 7,
     NA: 9,
     MA: 10,
     S: 11,
@@ -31,15 +31,14 @@ StageNames[Stage.D] = "D";
 StageNames[Stage.d] = "d";
 StageNames[Stage.EX] = "EX";
 StageNames[Stage.SX] = "SX";
-StageNames[Stage.F0] = "F0";
-StageNames[Stage.F1] = "F1";
-StageNames[Stage.f1] = "f1";
-StageNames[Stage.F2] = "F2";
-StageNames[Stage.F3] = "F3";
 StageNames[Stage.NA] = "NA";
 StageNames[Stage.MA] = "MA";
 StageNames[Stage.S] = "S";
 StageNames[Stage.FS] = "FS";
+StageNames[Stage.MS] = "MS";
+StageNames[Stage.M1] = "M1";
+StageNames[Stage.M2] = "M2";
+StageNames[Stage.M3] = "M3";
 
 const Group = {
     MT: "MT",
@@ -61,6 +60,7 @@ function isParallel(group1, group2) {
 
 //fdiv: F3 2 10 F1 11 1
 //fsqrt: F3 2 9 F1 10 1
+/*
 function pattern_37(f3_locks) {
     if (f3_locks == 10) {
         return [
@@ -105,6 +105,7 @@ function pattern_41(f3_locks) {
         throw new Error(`Unknown f3_locks ${f3_locks}`);
     }
 }
+*/
 
 const Patterns = {
     // 1-step operation: 1 issue cycle
@@ -331,6 +332,33 @@ const Patterns = {
         [Stage.F1 | Flags.LP,Stage.F1 | Flags.LP,Stage.F1 | Flags.LP]
     ],
 
+    // MULS.W/MULU.W
+    34: [
+        [Stage.I, Stage.D, Stage.EX, Stage.M2, Stage.M3, Stage.MS | Flags.R]
+    ],
+
+    // DMULS.L/DMULU.L/MUL.L
+    35: [
+        [Stage.I, Stage.D, Stage.EX, Stage.M2, Stage.M3 | Flags.Kick(1)],
+        [Stage.M2, Stage.M3, Stage.MS | Flags.R]
+    ],
+
+    // MAC.W
+    36: [
+        [Stage.I, Stage.D, Stage.MA | Flags.Kick(1), Stage.MA, Stage.MA, Stage.S],
+        [Stage.D | Flags.L, Stage.MA, Stage.MA, Stage.MA, Stage.S | Flags.Kick(2)],
+        [Stage.M2, Stage.M3, Stage.MS | Flags.R]
+    ],
+
+    // MAC.L
+    37: [
+        [Stage.I, Stage.D, Stage.MA | Flags.Kick(1), Stage.MA, Stage.MA, Stage.S],
+        [Stage.D | Flags.L, Stage.MA, Stage.MA, Stage.MA, Stage.S | Flags.Kick(2)],
+        [Stage.M2, Stage.M3 | Flags.Kick(3)],
+        [Stage.M2, Stage.M3, Stage.MS | Flags.R],
+    ]
+
+    /*
     // 34. Fixed-point multiplication: 2 issue cycles: DMULS.L, DMULU.L, MUL.L, MULS.W, MULU.W
     // TODO: Implement f1 semantics
     34: [
@@ -344,7 +372,7 @@ const Patterns = {
 
     // 35. MAC.W, MAC.L: 2 issue cycles
     35: [
-        [Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
+        5Stage.I, Stage.D | Flags.L, Stage.EX | Flags.Kick(1), Stage.MA, Stage.S],
         [Stage.D | Flags.L | Flags.Kick(2), Stage.EX | Flags.Kick(3), Stage.MA | Flags.Kick(4), Stage.S | Flags.Kick(5)],
         [Stage.f1],
         [Stage.f1],
@@ -396,7 +424,7 @@ const Patterns = {
         [Stage.d, Stage.F0 | Flags.Kick(3), Stage.F1, Stage.F2, Stage.FS],
         [Stage.d, Stage.F0, Stage.F1, Stage.F2, Stage.FS | Flags.R],
     ],
-
+    */
 };
 
 function index_of_part(asm, part) {
@@ -698,20 +726,20 @@ const Instructions = {
     63: {asm: ["DIV0U"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: none, writes: sr },
     64: {asm: ["DIV1", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rnsr },
     // 65 DMULS.L Rm,Rn CO 2 4/4 #34 F1 4 2
-    65: {asm: ["DMULS.L", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACH", "MACL"] },
+    65: {asm: ["DMULS.L", "Rm","Rn"], group: Group.EX, issue: 1, latency: 2, pattern: Patterns[35], reads: [rm, rn], writes: ["MACH", "MACL"] },
     // 66 DMULU.L Rm,Rn CO 2 4/4 #34 F1 4 2
-    66: {asm: ["DMULU.L", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACH", "MACL"] },
+    66: {asm: ["DMULU.L", "Rm","Rn"], group: Group.EX, issue: 1, latency: 2, pattern: Patterns[35], reads: [rm, rn], writes: ["MACH", "MACL"] },
     67: {asm: ["DT", "Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rn, writes: rnsr },
     // 68 MAC.L @Rm+,@Rn+ CO 2 2/2/4/4 #35 F1 4 2
-    68: {asm: ["MAC.L", "@Rm+","@Rn+"], group: Group.CO, issue: 2, latency: [2, 2, 4, 4], pattern: Patterns[35], reads: [rm, rn], writes: [rm, rn, "MACH", "MACL"] },
+    68: {asm: ["MAC.L", "@Rm+","@Rn+"], group: Group.CO, issue: 2, latency: 6, pattern: Patterns[37], reads: [rm, rn], writes: [rm, rn, "MACH", "MACL"] },
     // 69 MAC.W @Rm+,@Rn+ CO 2 2/2/4/4 #35 F1 4 2
-    69: {asm: ["MAC.W", "@Rm+","@Rn+"], group: Group.CO, issue: 2, latency: [2, 2, 4, 4], pattern: Patterns[35], reads: [rm, rn], writes: [rm, rn, "MACH", "MACL"] },
+    69: {asm: ["MAC.W", "@Rm+","@Rn+"], group: Group.CO, issue: 2, latency: 6, pattern: Patterns[36], reads: [rm, rn], writes: [rm, rn, "MACH", "MACL"] },
     // 70 MUL.L Rm,Rn CO 2 4/4 #34 F1 4 2
-    70: {asm: ["MUL.L", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
+    70: {asm: ["MUL.L", "Rm","Rn"], group: Group.EX, issue: 1, latency: 2, pattern: Patterns[35], reads: [rm, rn], writes: ["MACL"] },
     // 71 MULS.W Rm,Rn CO 2 4/4 #34 F1 4 2
-    71: {asm: ["MULS.W", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
+    71: {asm: ["MULS.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
     // 72 MULU.W Rm,Rn CO 2 4/4 #34 F1 4 2
-    72: {asm: ["MULU.W", "Rm","Rn"], group: Group.CO, issue: 2, latency: 4, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
+    72: {asm: ["MULU.W", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[34], reads: [rm, rn], writes: ["MACL"] },
     73: {asm: ["NEG", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: rn },
     // 74 NEGC Rm,Rn EX 1 1 #1 — — —
     74: {asm: ["NEGC", "Rm","Rn"], group: Group.EX, issue: 1, latency: 1, pattern: Patterns[1], reads: [rm, "SR"], writes: [rn, "SR"] },
@@ -887,6 +915,7 @@ const Instructions = {
     // 170 STS.L PR,@-Rn CO 2 2/2 #27 — — —
     170: {asm: ["STS.L", "PR","@-Rn"], group: Group.CO, issue: 2, latency: 2, pattern: Patterns[27], reads: "PR", writes: rn },
 
+    /*
     //Single-precision floating-point instructions
     171: {asm: ["FLDI0", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
     172: {asm: ["FLDI1", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: none, writes: fn },
@@ -902,28 +931,30 @@ const Instructions = {
     181: {asm: ["FSTS", "FPUL","FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fpul, writes: fn },
     //182 FABS FRn LS 1 0 #1 — — —
     182: {asm: ["FABS", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
-    183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
+    183: {asm: ["FADD", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fnm, writes: fn },
+    */
 
+    /*
     // 184 FCMP/EQ FRm,FRn FE 1 2/4 #36 — — —
-    184: {asm: ["FCMP/EQ", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
+    184: {asm: ["FCMP/EQ", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 , pattern: Patterns[36], reads: fnm, writes: sr },
     //185 FCMP/GT FRm,FRn FE 1 2/4 #36 — — —
-    185: {asm: ["FCMP/GT", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 /*2/4*/, pattern: Patterns[36], reads: fnm, writes: sr },
+    185: {asm: ["FCMP/GT", "FRm","FRn"], group: Group.FE, issue: 1, latency: 2 , pattern: Patterns[36], reads: fnm, writes: sr },
     // 186 FDIV FRm,FRn FE 1 12/13 #37 F3 2 10 F1 11 1
     186: {asm: ["FDIV", "FRm","FRn"], group: Group.FE, issue: 1, latency: [12, 13], pattern: pattern_37(10), reads: fnm, writes: [fn, "FPSCR"]},
     // 187 FLOAT FPUL,FRn FE 1 3/4 #36 F1 2 2
-    187: {asm: ["FLOAT", "FPUL","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fpul, writes: fn },
+    187: {asm: ["FLOAT", "FPUL","FRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fpul, writes: fn },
     // 188 FMAC FR0,FRm,FRn FE 1 3/4 #36 — — —
-    188: {asm: ["FMAC", "FR0","FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: [fnm, "FR0"], writes: [fn, "FPSCR"] },
-    189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
+    188: {asm: ["FMAC", "FR0","FRm","FRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: [fnm, "FR0"], writes: [fn, "FPSCR"] },
+    189: {asm: ["FMUL", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fnm, writes: fn },
     
     // 190 FNEG FRn LS 1 0 #1 — — —
     190: {asm: ["FNEG", "FRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: fn, writes: fn },
     // 191 FSQRT FRn FE 1 11/12 #37 F3 2 9 F1 10 1
-    191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 /*11/12*/, pattern: pattern_37(9), reads: fn, writes: fn },
+    191: {asm: ["FSQRT", "FRn"], group: Group.FE, issue: 1, latency: 11 , pattern: pattern_37(9), reads: fn, writes: fn },
 
-    192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 /*3/4*/, pattern: Patterns[36], reads: fnm, writes: fn },
+    192: {asm: ["FSUB", "FRm","FRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fnm, writes: fn },
     // 193 FTRC FRm,FPUL FE 1 3/4 #36 — — —
-    193: {asm: ["FTRC", "FRm","FPUL"], group: Group.FE, issue: 1, latency: 3 /*[3, 4]*/, pattern: Patterns[36], reads: fm, writes: ["FPUL", "FPSCR"] },
+    193: {asm: ["FTRC", "FRm","FPUL"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fm, writes: ["FPUL", "FPSCR"] },
     // 194 FMOV DRm,DRn LS 1 0 #1 — — —
     194: {asm: ["FMOV", "DRm","DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dm, writes: dn },
     // 195 FMOV @Rm,DRn LS 1 2 #2 — — —
@@ -943,39 +974,39 @@ const Instructions = {
     // 201 FABS DRn LS 1 0 #1 — — —
     201: {asm: ["FABS", "DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dn, writes: dn },
     // 202 FADD DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
-    202: {asm: ["FADD", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8/*, 9*/], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
+    202: {asm: ["FADD", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 203 FCMP/EQ DRm,DRn CO 2 3/5 #40 F1 2 2
-    203: {asm: ["FCMP/EQ", "DRm","DRn"], group: Group.CO, issue: 2, latency: [3/*, 5*/], pattern: Patterns[40], reads: [dm, dn], writes: [sr, "FPSCR"] },
+    203: {asm: ["FCMP/EQ", "DRm","DRn"], group: Group.CO, issue: 2, latency: [3], pattern: Patterns[40], reads: [dm, dn], writes: [sr, "FPSCR"] },
     // 204 FCMP/GT DRm,DRn CO 2 3/5 #40 F1 2 2
-    204: {asm: ["FCMP/GT", "DRm","DRn"], group: Group.CO, issue: 2, latency: [3/*, 5*/], pattern: Patterns[40], reads: [dm, dn], writes: [sr, "FPSCR"] },
+    204: {asm: ["FCMP/GT", "DRm","DRn"], group: Group.CO, issue: 2, latency: [3], pattern: Patterns[40], reads: [dm, dn], writes: [sr, "FPSCR"] },
     // 205 FCNVDS DRm,FPUL FE 1 4/5 #38 F1 2 2
-    205: {asm: ["FCNVDS", "DRm","FPUL"], group: Group.FE, issue: 1, latency: [4/*, 5*/], pattern: Patterns[38], reads: dm, writes: ["FPUL", "FPSCR"] },
+    205: {asm: ["FCNVDS", "DRm","FPUL"], group: Group.FE, issue: 1, latency: [4], pattern: Patterns[38], reads: dm, writes: ["FPUL", "FPSCR"] },
     // 206 FCNVSD FPUL,DRn FE 1 (3, 4)/5 #38 F1 2 2
-    206: {asm: ["FCNVSD", "FPUL","DRn"], group: Group.FE, issue: 1, latency: [3, 4/*, 5*/], pattern: Patterns[38], reads: fpul, writes: [dn, "FPSCR"] },
+    206: {asm: ["FCNVSD", "FPUL","DRn"], group: Group.FE, issue: 1, latency: [3, 4], pattern: Patterns[38], reads: fpul, writes: [dn, "FPSCR"] },
     // 207 FDIV DRm,DRn FE 1 (24, 25)/26 #41 F3 2 21 F1 20 3
-    207: {asm: ["FDIV", "DRm","DRn"], group: Group.FE, issue: 1, latency: [24, 25/*, 26*/], pattern: pattern_41(21), reads: [dm, dn], writes: [dn, "FPSCR"] },
+    207: {asm: ["FDIV", "DRm","DRn"], group: Group.FE, issue: 1, latency: [24, 25], pattern: pattern_41(21), reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 208 FLOAT FPUL,DRn FE 1 (3, 4)/5 #38 F1 2 2
-    208: {asm: ["FLOAT", "FPUL","DRn"], group: Group.FE, issue: 1, latency: [3, 4/*, 5*/], pattern: Patterns[38], reads: fpul, writes: [dn, "FPSCR"] },
+    208: {asm: ["FLOAT", "FPUL","DRn"], group: Group.FE, issue: 1, latency: [3, 4], pattern: Patterns[38], reads: fpul, writes: [dn, "FPSCR"] },
     // 209 FMUL DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
-    209: {asm: ["FMUL", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8/*, 9*/], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
+    209: {asm: ["FMUL", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 210 FNEG DRn LS 1 0 #1 — — —
     210: {asm: ["FNEG", "DRn"], group: Group.LS, issue: 1, latency: 0, pattern: Patterns[1], reads: dn, writes: dn },
     // 211 FSQRT DRn FE 1 (23, 24)/25 #41 F3 2 20 F1 19 3
-    211: {asm: ["FSQRT", "DRn"], group: Group.FE, issue: 1, latency: [23, 24/*, 25*/], pattern: pattern_41(20), reads: dn, writes: [dn, "FPSCR"] },
+    211: {asm: ["FSQRT", "DRn"], group: Group.FE, issue: 1, latency: [23, 24], pattern: pattern_41(20), reads: dn, writes: [dn, "FPSCR"] },
     // 212 FSUB DRm,DRn FE 1 (7, 8)/9 #39 F1 2 6
-    212: {asm: ["FSUB", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8/*, 9*/], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
+    212: {asm: ["FSUB", "DRm","DRn"], group: Group.FE, issue: 1, latency: [7, 8], pattern: Patterns[39], reads: [dm, dn], writes: [dn, "FPSCR"] },
     // 213 FTRC DRm,FPUL FE 1 4/5 #38 F1 2 2
-    213: {asm: ["FTRC", "DRm","FPUL"], group: Group.FE, issue: 1, latency: [4/*, 5*/], pattern: Patterns[38], reads: dm, writes: ["FPUL", "FPSCR"] },
+    213: {asm: ["FTRC", "DRm","FPUL"], group: Group.FE, issue: 1, latency: [4], pattern: Patterns[38], reads: dm, writes: ["FPUL", "FPSCR"] },
 
     // FPU system control instructions
     // 214 LDS Rm,FPUL LS 1 1 #1 — — —
     214: {asm: ["LDS", "Rm","FPUL"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[1], reads: rm, writes: fpul },
     // 215 LDS Rm,FPSCR CO 1 4 #32 F1 3 3
-    215: {asm: ["LDS", "Rm","FPSCR"], group: Group.CO, issue: 1, latency: 3/* should be 4 */, pattern: Patterns[32], reads: rm, writes: "FPSCR" },
+    215: {asm: ["LDS", "Rm","FPSCR"], group: Group.CO, issue: 1, latency: 3, pattern: Patterns[32], reads: rm, writes: "FPSCR" },
     // 216 LDS.L @Rm+,FPUL CO 1 1/2 #2 — — —
     216: {asm: ["LDS.L", "@Rm+","FPUL"], group: Group.CO, issue: 1, latency: [1, 2], pattern: Patterns[2], reads: rm, writes: [rm, "FPUL"] },
     // 217 LDS.L @Rm+,FPSCR CO 1 1/4 #33 F1 3 3
-    217: {asm: ["LDS.L", "@Rm+","FPSCR"], group: Group.CO, issue: 1, latency: [1/*, 4*/], pattern: Patterns[33], reads: rm, writes: [rm, "FPSCR"] },
+    217: {asm: ["LDS.L", "@Rm+","FPSCR"], group: Group.CO, issue: 1, latency: [1], pattern: Patterns[33], reads: rm, writes: [rm, "FPSCR"] },
     // 218 STS FPUL,Rn LS 1 3 #1 — — —
     218: {asm: ["STS", "FPUL","Rn"], group: Group.LS, issue: 1, latency: 3, pattern: Patterns[1], reads: fpul, writes: rn },
     // 219 STS FPSCR,Rn CO 1 3 #1 — — —
@@ -1005,17 +1036,18 @@ const Instructions = {
     // 230 FMOV XDm,@(R0,Rn) LS 1 1 #2 — — —
     230: {asm: ["FMOV", "XDm","@(R0,Rn)"], group: Group.LS, issue: 1, latency: 1, pattern: Patterns[2], reads: [xdm, at_r0n], writes: none },
     // 231 FIPR FVm,FVn FE 1 4/5 #42 F1 3 1
-    231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 /*4/5*/, pattern: Patterns[42], reads: fvm, writes: fvn },
+    231: {asm: ["FIPR", "FVm","FVn"], group: Group.FE, issue: 1, latency: 4 , pattern: Patterns[42], reads: fvm, writes: fvn },
     // 232 FRCHG FE 1 1/4 #36 — — —
     // 233 FSCHG FE 1 1/4 #36 — — —
     // 234 FTRV XMTRX,FVn FE 1 (5, 5, 6,7)/8 #43 F0 2 4 F1 3 4
     234: {asm: ["FTRV", "XMTRX","FVn"], group: Group.FE, issue: 1, latency: [5, 5, 6,7, 8], pattern: Patterns[43], reads: xmtrx, writes: [fvn, "FPSCR"] },
 
     // special, not in manual
-    256: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fn, writes: fn },
+    256: {asm: ["FSRRA", "FRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fn, writes: fn },
 
     // special, not in manual
-    257: {asm: ["FSCA", "FPUL", "DRn"], group: Group.FE, issue: 1, latency: 3 /* test this */, pattern: Patterns[36], reads: fpul, writes: dn },
+    257: {asm: ["FSCA", "FPUL", "DRn"], group: Group.FE, issue: 1, latency: 3 , pattern: Patterns[36], reads: fpul, writes: dn },
+    */
 };
 
 function resolve_read_write(rw) {
